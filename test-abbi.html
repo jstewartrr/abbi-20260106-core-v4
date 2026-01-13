@@ -315,7 +315,6 @@
                 input.value = '';
             } catch (error) {
                 console.error('Error sending text message:', error);
-                addTranscript('tool', 'Failed to send message: ' + error.message, 'Error');
             }
         };
 
@@ -340,7 +339,6 @@
             if (abbiConversation) {
                 try {
                     await abbiConversation.endSession();
-                    addTranscript('tool', 'Session ended', 'System');
                 } catch (e) {
                     console.error('Error ending session:', e);
                 }
@@ -357,16 +355,13 @@
                 status.textContent = 'Connecting to ABBI...';
                 avatar.classList.add('listening');
                 toggleBtn.disabled = true;
-                addTranscript('tool', 'Requesting microphone access...', 'System');
 
                 // Request microphone permission
                 await navigator.mediaDevices.getUserMedia({ audio: true });
-                addTranscript('tool', 'Microphone access granted', 'System');
 
                 // Get signed URL
                 status.textContent = 'Getting secure connection...';
                 const signedUrl = await getSignedUrl();
-                addTranscript('tool', 'Connected to ElevenLabs', 'System');
 
                 // Import ElevenLabs client
                 const { Conversation } = await import('https://esm.sh/@elevenlabs/client@0.12.2');
@@ -376,7 +371,7 @@
                 abbiConversation = await Conversation.startSession({
                     signedUrl: signedUrl,
                     onConnect: () => {
-                        addTranscript('tool', '✅ Voice session connected', 'System');
+                        console.log('Connected');
                         status.textContent = '✅ Connected - Speak or type';
                         avatar.classList.remove('listening');
                         avatar.classList.add('speaking');
@@ -386,7 +381,7 @@
                         sendBtn.disabled = false;
                     },
                     onDisconnect: () => {
-                        addTranscript('tool', 'Disconnected from ABBI', 'System');
+                        console.log('Disconnected');
                         status.textContent = 'Session ended';
                         avatar.classList.remove('listening', 'speaking');
                         abbiConversation = null;
@@ -398,19 +393,19 @@
                     onMessage: (message) => {
                         console.log('Message:', message);
                         
-                        // Handle different message types
+                        // Only show actual conversation in transcript
                         if (message.type === 'user_transcript' || message.role === 'user') {
                             addTranscript('user', message.message || message.content || message.text);
                         } else if (message.type === 'agent_response' || message.role === 'assistant') {
                             addTranscript('assistant', message.message || message.content || message.text);
                         } else if (message.type === 'tool_call') {
-                            addTranscript('tool', `🔧 Calling tool: ${message.tool_name || 'unknown'}`, 'Tool Call');
+                            // Show tool calls
+                            addTranscript('tool', `🔧 ${message.tool_name || 'Tool called'}`, 'Tool');
                         }
                     },
                     onError: (error) => {
                         console.error('ABBI error:', error);
-                        addTranscript('tool', '❌ Error: ' + (error.message || JSON.stringify(error)), 'Error');
-                        status.textContent = '❌ Error - Check transcription';
+                        status.textContent = '❌ Error - Check console';
                         avatar.classList.remove('listening', 'speaking');
                         abbiConversation = null;
                         toggleBtn.textContent = 'Start Voice Session';
@@ -433,7 +428,6 @@
 
             } catch (error) {
                 console.error('ABBI connection error:', error);
-                addTranscript('tool', '❌ Failed to connect: ' + error.message, 'Error');
                 avatar.classList.remove('listening', 'speaking');
                 toggleBtn.disabled = false;
                 toggleBtn.textContent = 'Start Voice Session';
