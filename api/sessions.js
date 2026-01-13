@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // Query Hive Mind for sessions with Asana project info
+    // Query RAW.HIVE_MIND for sessions with metadata
     const sql = `SELECT
       SESSION_ID,
       SOURCE,
@@ -14,11 +14,11 @@ export default async function handler(req, res) {
       WORKSTREAM,
       SUMMARY,
       CREATED_AT,
-      ASANA_PROJECT_ID,
-      ASANA_PROJECT_NAME,
-      ASANA_PROJECT_URL
-    FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
+      METADATA
+    FROM SOVEREIGN_MIND.RAW.HIVE_MIND
     WHERE SESSION_ID IS NOT NULL
+      AND CREATED_AT > DATEADD(day, -30, CURRENT_TIMESTAMP())
+    GROUP BY SESSION_ID, SOURCE, CATEGORY, WORKSTREAM, SUMMARY, CREATED_AT, METADATA
     ORDER BY CREATED_AT DESC
     LIMIT 20`;
 
@@ -43,17 +43,39 @@ export default async function handler(req, res) {
 
       return res.json({
         success: true,
-        sessions: sessions.map(s => ({
-          id: s.SESSION_ID || 'unknown',
-          title: s.WORKSTREAM || s.CATEGORY || 'Session',
-          summary: s.SUMMARY || '',
-          status: 'active',
-          created_at: s.CREATED_AT,
-          source: s.SOURCE || 'Claude',
-          asana_project_id: s.ASANA_PROJECT_ID || null,
-          asana_project_name: s.ASANA_PROJECT_NAME || null,
-          asana_project_url: s.ASANA_PROJECT_URL || null
-        }))
+        sessions: sessions.map(s => {
+          // Parse metadata for Asana project info
+          let asanaProjectId = null;
+          let asanaProjectName = null;
+          let asanaProjectUrl = null;
+
+          if (s.METADATA) {
+            try {
+              const metadata = typeof s.METADATA === 'string' ? JSON.parse(s.METADATA) : s.METADATA;
+              asanaProjectId = metadata.asana_project_id || metadata.ASANA_PROJECT_ID;
+              asanaProjectName = metadata.asana_project_name || metadata.ASANA_PROJECT_NAME;
+
+              // Construct Asana URL from project ID
+              if (asanaProjectId) {
+                asanaProjectUrl = `https://app.asana.com/0/${asanaProjectId}`;
+              }
+            } catch (e) {
+              // Metadata parse error - ignore
+            }
+          }
+
+          return {
+            id: s.SESSION_ID || 'unknown',
+            title: s.WORKSTREAM || s.CATEGORY || 'Session',
+            summary: s.SUMMARY || '',
+            status: 'active',
+            created_at: s.CREATED_AT,
+            source: s.SOURCE || 'Claude',
+            asana_project_id: asanaProjectId,
+            asana_project_name: asanaProjectName,
+            asana_project_url: asanaProjectUrl
+          };
+        })
       });
     }
 
