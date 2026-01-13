@@ -43,35 +43,30 @@
             grid-column: 1 / -1;
         }
         .avatar-wrapper {
-            width: 200px;
-            height: 200px;
+            width: 400px;
+            height: 400px;
             margin: 0 auto 20px;
             cursor: pointer;
             transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
         .avatar-wrapper:hover {
-            transform: scale(1.05);
+            transform: scale(1.02);
         }
         .avatar-wrapper.listening {
-            animation: pulse 1.5s infinite;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
         }
         .avatar-wrapper.speaking {
-            animation: speak 0.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        @keyframes speak {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.5);
         }
         .avatar {
             width: 100%;
             height: 100%;
-            border-radius: 50%;
+            border-radius: 24px;
             object-fit: cover;
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            background: #f0f0f0;
         }
         .status-text {
             text-align: center;
@@ -219,10 +214,13 @@
         <!-- Left Panel: Voice Control -->
         <div class="panel">
             <div class="avatar-wrapper" id="abbiAvatar" onclick="toggleABBI()">
-                <img src="https://lh3.googleusercontent.com/d/1mEGmRYYQ_3exRbYYF7CyznYvcrHzPrPs=w400"
-                     alt="ABBI"
-                     class="avatar"
-                     onerror="this.style.display='none'">
+                <video id="abbiVideo"
+                       class="avatar"
+                       autoplay
+                       playsinline
+                       muted
+                       poster="https://lh3.googleusercontent.com/d/1mEGmRYYQ_3exRbYYF7CyznYvcrHzPrPs=w400">
+                </video>
             </div>
 
             <div class="status-text" id="abbiStatus">Tap to start voice session</div>
@@ -342,6 +340,14 @@
                 } catch (e) {
                     console.error('Error ending session:', e);
                 }
+
+                // Clear video stream
+                const videoElement = document.getElementById('abbiVideo');
+                if (videoElement && videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
+
                 abbiConversation = null;
                 avatar.classList.remove('listening', 'speaking');
                 status.textContent = 'Tap to start voice session';
@@ -366,10 +372,13 @@
                 // Import ElevenLabs client
                 const { Conversation } = await import('https://esm.sh/@elevenlabs/client@0.12.2');
 
-                // Start conversation
+                // Start conversation with video enabled
                 status.textContent = 'Starting voice session...';
                 abbiConversation = await Conversation.startSession({
                     signedUrl: signedUrl,
+                    clientTools: {
+                        video: true
+                    },
                     onConnect: () => {
                         console.log('Connected');
                         status.textContent = '✅ Connected - Speak or type';
@@ -380,10 +389,26 @@
                         textInput.disabled = false;
                         sendBtn.disabled = false;
                     },
+                    onVideoStream: (stream) => {
+                        console.log('📹 Video stream received');
+                        const videoElement = document.getElementById('abbiVideo');
+                        if (videoElement && stream) {
+                            videoElement.srcObject = stream;
+                            videoElement.play().catch(e => console.error('Video play error:', e));
+                        }
+                    },
                     onDisconnect: () => {
                         console.log('Disconnected');
                         status.textContent = 'Session ended';
                         avatar.classList.remove('listening', 'speaking');
+
+                        // Clear video stream
+                        const videoElement = document.getElementById('abbiVideo');
+                        if (videoElement && videoElement.srcObject) {
+                            videoElement.srcObject.getTracks().forEach(track => track.stop());
+                            videoElement.srcObject = null;
+                        }
+
                         abbiConversation = null;
                         toggleBtn.textContent = 'Start Voice Session';
                         toggleBtn.disabled = false;
@@ -391,22 +416,49 @@
                         sendBtn.disabled = true;
                     },
                     onMessage: (message) => {
-                        console.log('Message:', message);
+                        console.log('📨 Message received:', message);
                         
-                        // Only show actual conversation in transcript
+                        // Extract text from various message formats
+                        const text = message.message || message.content || message.text || '';
+                        
+                        // User messages
                         if (message.type === 'user_transcript' || message.role === 'user') {
-                            addTranscript('user', message.message || message.content || message.text);
-                        } else if (message.type === 'agent_response' || message.role === 'assistant') {
-                            addTranscript('assistant', message.message || message.content || message.text);
-                        } else if (message.type === 'tool_call') {
-                            // Show tool calls
-                            addTranscript('tool', `🔧 ${message.tool_name || 'Tool called'}`, 'Tool');
+                            if (text) addTranscript('user', text);
+                        } 
+                        // Agent/Assistant responses - try multiple formats
+                        else if (message.type === 'agent_response' || 
+                                 message.type === 'agent_response_correction' ||
+                                 message.role === 'assistant' ||
+                                 message.source === 'ai') {
+                            if (text) addTranscript('assistant', text);
+                        }
+                        // Tool calls
+                        else if (message.type === 'tool_call') {
+                            const toolName = message.tool_name || message.name || 'Tool';
+                            addTranscript('tool', `🔧 ${toolName}`, 'Tool');
+                        }
+                        // Catch any text-containing messages we might have missed
+                        else if (text && text.length > 0) {
+                            // Log unknown message type for debugging
+                            console.log('🔍 Unknown message type:', message.type, '- Text:', text);
+                            // If it seems like assistant content, show it
+                            if (message.type && message.type.includes('agent')) {
+                                addTranscript('assistant', text);
+                            }
                         }
                     },
                     onError: (error) => {
                         console.error('ABBI error:', error);
                         status.textContent = '❌ Error - Check console';
                         avatar.classList.remove('listening', 'speaking');
+
+                        // Clear video stream
+                        const videoElement = document.getElementById('abbiVideo');
+                        if (videoElement && videoElement.srcObject) {
+                            videoElement.srcObject.getTracks().forEach(track => track.stop());
+                            videoElement.srcObject = null;
+                        }
+
                         abbiConversation = null;
                         toggleBtn.textContent = 'Start Voice Session';
                         toggleBtn.disabled = false;
@@ -429,6 +481,14 @@
             } catch (error) {
                 console.error('ABBI connection error:', error);
                 avatar.classList.remove('listening', 'speaking');
+
+                // Clear video stream in case of error
+                const videoElement = document.getElementById('abbiVideo');
+                if (videoElement && videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
+
                 toggleBtn.disabled = false;
                 toggleBtn.textContent = 'Start Voice Session';
 
