@@ -708,7 +708,10 @@
         <!-- SESSIONS -->
         <section class="page" id="page-sessions">
             <div class="sessions-filters"><button class="filter-btn active">All</button><button class="filter-btn">Active</button><button class="filter-btn">Claude</button><button class="filter-btn">Grok</button><button class="filter-btn">Vertex</button><button class="filter-btn">ChatGPT</button><button class="filter-btn">Bedrock</button><button class="filter-btn">Copilot</button><button class="filter-btn">Gemini</button></div>
-            
+
+            <!-- Dynamic sessions container -->
+            <div id="sessions-container"></div>
+
             <!-- Session with active project -->
             <div class="session-card-enhanced">
                 <div class="session-card-main">
@@ -1799,13 +1802,82 @@
                 const res = await fetch(`${CONFIG.API_BASE}/api/sessions`);
                 if (!res.ok) throw new Error('API error');
                 const data = await res.json();
-                
-                // Sessions are loaded - could update UI here
+
+                const container = document.getElementById('sessions-container');
+                if (!container || !data.sessions) return;
+
+                // Clear existing dynamic sessions
+                container.innerHTML = '';
+
+                // Render each session with conditional Asana link
+                data.sessions.forEach(session => {
+                    const sessionCard = createSessionCard(session);
+                    container.appendChild(sessionCard);
+                });
+
                 console.log('Sessions loaded:', data.sessions?.length || 0);
-                
+
             } catch (err) {
                 console.error('Sessions error:', err);
             }
+        }
+
+        function createSessionCard(session) {
+            const card = document.createElement('div');
+            card.className = 'session-card-enhanced';
+
+            // Determine status class and badge
+            const statusClass = session.status === 'active' ? 'active' : 'idle';
+            const badgeClass = session.status === 'active' ? 'badge-green' : 'badge-amber';
+            const badgeText = session.status === 'active' ? 'Active' : 'Idle';
+
+            // Main card content
+            card.innerHTML = `
+                <div class="session-card-main">
+                    <div class="session-status-light ${statusClass}"></div>
+                    <span class="session-card-id">${session.id}</span>
+                    <div class="session-card-content">
+                        <div class="session-card-title" onclick="openSession('${session.id}')" style="cursor:pointer">${session.title}</div>
+                        <div class="session-current-task">
+                            <span class="current-task-label">Summary:</span>
+                            <span class="current-task-name">${session.summary ? session.summary.substring(0, 80) + '...' : 'No summary'}</span>
+                        </div>
+                    </div>
+                    <div class="session-card-right">
+                        <span class="badge ${badgeClass}">${badgeText}</span>
+                        <button class="session-delete" title="Delete session">✕</button>
+                    </div>
+                </div>
+            `;
+
+            // Conditionally add Asana project section OR no-project section
+            if (session.asana_project_url && session.asana_project_name) {
+                // Has Asana project - show clickable link
+                const projectDiv = document.createElement('div');
+                projectDiv.className = 'session-card-project';
+                projectDiv.innerHTML = `
+                    <a href="${session.asana_project_url}" target="_blank" class="asana-link">
+                        <span class="asana-icon">📋</span>
+                        <span class="asana-project-name">${session.asana_project_name}</span>
+                        <span class="asana-external">↗</span>
+                    </a>
+                    <div class="session-project-stats">
+                        <span class="project-stat">Project linked</span>
+                    </div>
+                `;
+                card.appendChild(projectDiv);
+            } else {
+                // No Asana project - show "No project linked" message
+                const noProjectDiv = document.createElement('div');
+                noProjectDiv.className = 'session-no-project';
+                noProjectDiv.innerHTML = `
+                    <span class="no-project-text">No Asana project linked</span>
+                    <button class="link-project-btn">+ Link Project</button>
+                `;
+                card.appendChild(noProjectDiv);
+            }
+
+            return card;
         }
 
         // Open a specific session
@@ -1954,7 +2026,19 @@
         // Original UI Functions (preserved)
         // ===========================================
         document.querySelectorAll('.nav-link').forEach(l=>l.addEventListener('click',()=>goToPage(l.dataset.page)));
-        function goToPage(p){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));document.querySelectorAll(`.nav-link[data-page="${p}"]`).forEach(l=>l.classList.add('active'));document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));const el=document.getElementById(`page-${p}`);if(el)el.classList.add('active');document.getElementById('mobileNav').classList.remove('show')}
+        function goToPage(p){
+            document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+            document.querySelectorAll(`.nav-link[data-page="${p}"]`).forEach(l=>l.classList.add('active'));
+            document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+            const el=document.getElementById(`page-${p}`);
+            if(el)el.classList.add('active');
+            document.getElementById('mobileNav').classList.remove('show');
+
+            // Load sessions dynamically when navigating to sessions page
+            if(p === 'sessions'){
+                loadSessions();
+            }
+        }
         function toggleMobile(){document.getElementById('mobileNav').classList.toggle('show')}
 
         // Model Selector Functions
