@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboards | ABBI</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/><text y='.9em' x='25' font-size='50' fill='white'>AI</text></svg>">
+    <style>
+        :root{--bg:#0a0a0f;--card:#1a1a25;--border:#2a2a3a;--purple:#8b5cf6;--text:#f1f5f9;--text2:#94a3b8}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
+        .container{max-width:600px;padding:40px}
+        h1{font-size:2rem;margin-bottom:8px;background:linear-gradient(90deg,var(--purple),#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        p{color:var(--text2);margin-bottom:32px}
+        .dashboard-list{display:flex;flex-direction:column;gap:12px}
+        .dashboard-link{display:block;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;text-decoration:none;color:var(--text);transition:all .2s}
+        .dashboard-link:hover{border-color:var(--purple);transform:translateX(4px)}
+        .dashboard-name{font-weight:600;margin-bottom:4px}
+        .dashboard-desc{font-size:.85rem;color:var(--text2)}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ABBI Dashboards</h1>
+        <p>Select a dashboard to view</p>
+        <div class="dashboard-list">
+            <a href="./executive/jstewart" class="dashboard-link">
+                <div class="dashboard-name">Executive Dashboard - John Stewart</div>
+                <div class="dashboard-desc">Daily briefing, tasks, calendar, portfolio status</div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

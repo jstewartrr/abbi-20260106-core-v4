@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ABBI Test</title>
+</head>
+<body>
+    <h1>ABBI Connection Test</h1>
+    <button id="testBtn">Test Connection</button>
+    <div id="status">Click button to test</div>
+    <div id="logs" style="white-space: pre-wrap; font-family: monospace; margin-top: 20px;"></div>
+
+    <script type="module">
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(msg) {
+            console.log(msg);
+            logsDiv.textContent += new Date().toISOString() + ': ' + msg + '\n';
+        }
+
+        async function testConnection() {
+            try {
+                log('Fetching signed URL...');
+                const response = await fetch('/api/get-signed-url');
+                const data = await response.json();
+                log('Got signed URL: ' + data.signed_url);
+
+                statusDiv.textContent = 'Got signed URL, importing client...';
+
+                const { Conversation } = await import('https://esm.sh/@elevenlabs/client@0.12.2');
+                log('Client imported successfully');
+
+                statusDiv.textContent = 'Starting session...';
+
+                const conversation = await Conversation.startSession({
+                    signedUrl: data.signed_url,
+                    onConnect: () => {
+                        log('✓ Connected!');
+                        statusDiv.textContent = 'Connected!';
+                    },
+                    onDisconnect: () => {
+                        log('Disconnected');
+                        statusDiv.textContent = 'Disconnected';
+                    },
+                    onError: (error) => {
+                        log('ERROR: ' + JSON.stringify(error, null, 2));
+                        statusDiv.textContent = 'Error: ' + error.message;
+                    },
+                    onMessage: (message) => {
+                        log('Message: ' + JSON.stringify(message));
+                    },
+                    onModeChange: (mode) => {
+                        log('Mode changed: ' + JSON.stringify(mode));
+                    }
+                });
+
+                log('Session started, waiting for connection...');
+
+            } catch (error) {
+                log('EXCEPTION: ' + error.message);
+                log('Stack: ' + error.stack);
+                statusDiv.textContent = 'Failed: ' + error.message;
+            }
+        }
+
+        document.getElementById('testBtn').addEventListener('click', testConnection);
+    </script>
+</body>
+</html>

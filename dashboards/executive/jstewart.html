@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Executive Dashboard | ABBI</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#0a0a0f;--bg2:#12121a;--card:#1a1a25;--border:#2a2a3a;--purple:#8b5cf6;--blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        a{color:var(--purple);text-decoration:none}
+        a:hover{text-decoration:underline}
+        
+        /* Login */
+        .login-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+        .login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;text-align:center}
+        .login-logo{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;color:#fff;margin:0 auto 20px}
+        .login-title{font-size:1.5rem;font-weight:700;margin-bottom:8px}
+        .login-subtitle{color:var(--text2);margin-bottom:24px}
+        .login-input{width:100%;padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;margin-bottom:16px}
+        .login-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--purple),var(--blue));border:none;border-radius:10px;color:#fff;font-weight:600;cursor:pointer}
+        .login-error{color:var(--red);margin-top:12px;display:none}
+        
+        /* Nav */
+        .nav{position:fixed;top:0;left:0;right:0;height:60px;background:rgba(18,18,26,.95);border-bottom:1px solid var(--border);display:none;align-items:center;padding:0 20px;z-index:1000}
+        .nav-brand{display:flex;align-items:center;gap:10px}
+        .nav-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+        .nav-title{font-weight:700;background:linear-gradient(90deg,var(--purple),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .nav-links{display:flex;gap:4px;flex:1;margin-left:32px}
+        .nav-link{padding:8px 14px;border-radius:8px;color:var(--text2);text-decoration:none}
+        .nav-link.active{background:var(--purple);color:#fff}
+        .nav-right{display:flex;align-items:center;gap:12px}
+        .nav-status{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:rgba(34,197,94,.1);color:var(--green)}
+        .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+        .nav-logout{background:0;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer}
+        
+        /* Main */
+        .main{display:none;padding:80px 20px 20px;max-width:1800px;margin:0 auto}
+        .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+        .page-title{font-size:1.75rem;font-weight:700}
+        .page-subtitle{color:var(--text2);font-size:.9rem}
+        
+        /* Time Filters */
+        .time-filters{display:flex;gap:8px;align-items:center}
+        .time-filter{padding:6px 14px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:.85rem;font-weight:500;transition:all .2s}
+        .time-filter:hover{border-color:var(--purple)}
+        .time-filter.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+        
+        /* Stats Grid */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+        .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+        .stat-label{color:var(--text2);font-size:.75rem;text-transform:uppercase;margin-bottom:6px}
+        .stat-value{font-size:1.75rem;font-weight:700}
+        .stat-value.green{color:var(--green)}
+        .stat-value.amber{color:var(--amber)}
+        .stat-value.purple{color:var(--purple)}
+        .stat-change{font-size:.75rem;margin-top:4px}
+        .stat-change.up{color:var(--green)}
+        .stat-change.down{color:var(--red)}
+        
+        /* Asana Projects */
+        .asana-projects{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+        .asana-link{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);text-decoration:none;font-size:.85rem;font-weight:500;transition:all .2s}
+        .asana-link:hover{border-color:var(--purple);text-decoration:none;transform:translateY(-1px)}
+        .asana-link-icon{font-size:1rem}
+        
+        /* Email Section */
+        .email-section{margin-bottom:24px}
+        .email-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+        .email-tab{padding:12px 20px;border-radius:10px;background:var(--card);border:2px solid var(--border);color:var(--text);cursor:pointer;font-size:.9rem;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:8px}
+        .email-tab:hover{border-color:var(--purple)}
+        .email-tab.active{background:var(--red);color:#fff;border-color:var(--red)}
+        .email-tab.active.to-emails{background:var(--red);border-color:var(--red)}
+        .email-tab.active.cc-emails{background:var(--amber);border-color:var(--amber)}
+        .email-tab.active.meeting-req{background:var(--purple);border-color:var(--purple)}
+        .email-tab.active.overdue{background:var(--red);border-color:var(--red)}
+        .email-tab.active.responded{background:var(--green);border-color:var(--green)}
+        .email-tab-count{background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px;font-size:.75rem}
+        
+        /* Email Container */
+        .email-container{display:grid;grid-template-columns:1fr 400px;gap:16px}
+        @media(max-width:1200px){.email-container{grid-template-columns:1fr}}
+        
+        /* Email List */
+        .email-list{background:var(--card);border:1px solid var(--border);border-radius:12px;max-height:500px;overflow-y:auto}
+        .email-item{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+        .email-item:hover{background:var(--bg2)}
+        .email-item:last-child{border-bottom:0}
+        .email-item.selected{background:rgba(139,92,246,.1);border-left:3px solid var(--purple)}
+        .email-priority{width:4px;min-height:50px;border-radius:2px;flex-shrink:0}
+        .email-priority.high{background:var(--red)}
+        .email-priority.medium{background:var(--amber)}
+        .email-priority.low{background:var(--green)}
+        .email-content{flex:1;min-width:0}
+        .email-from{font-weight:600;font-size:.9rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .email-subject{font-size:.85rem;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .email-preview{font-size:.8rem;color:var(--text3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .email-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+        .email-time{font-size:.75rem;color:var(--text3)}
+        .email-link{font-size:.7rem;color:var(--purple);text-decoration:none}
+        .email-link:hover{text-decoration:underline}
+        
+        /* Email Summary Panel */
+        .email-summary{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;height:fit-content;position:sticky;top:80px}
+        .summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+        .summary-title{font-weight:600;font-size:1rem}
+        .summary-expand{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);cursor:pointer;font-size:.75rem}
+        .summary-from{font-weight:600;margin-bottom:4px}
+        .summary-subject{color:var(--text2);font-size:.9rem;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+        .summary-content{font-size:.9rem;line-height:1.6;color:var(--text2);max-height:200px;overflow-y:auto;transition:max-height .3s}
+        .summary-content.expanded{max-height:none}
+        .summary-actions{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+        .summary-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);cursor:pointer;font-size:.85rem;font-weight:500;transition:all .2s}
+        .summary-btn:hover{border-color:var(--purple)}
+        .summary-btn.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+        .summary-link{display:block;margin-top:12px;text-align:center;font-size:.85rem}
+        .no-selection{text-align:center;color:var(--text3);padding:40px 20px}
+        
+        /* Section Grid */
+        .section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+        .section-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+        .section-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .section-title{font-weight:600;font-size:.95rem}
+        .section-badge{background:var(--purple);color:#fff;padding:3px 10px;border-radius:10px;font-size:.75rem}
+        .section-content{padding:14px 18px;max-height:350px;overflow-y:auto}
+        
+        /* Items */
+        .item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+        .item:last-child{border-bottom:0}
+        .item-priority{width:4px;height:36px;border-radius:2px}
+        .item-priority.high{background:var(--red)}
+        .item-priority.medium{background:var(--amber)}
+        .item-priority.low{background:var(--green)}
+        .item-content{flex:1}
+        .item-title{font-weight:500;font-size:.9rem;margin-bottom:2px}
+        .item-title a{color:var(--text);text-decoration:none}
+        .item-title a:hover{color:var(--purple)}
+        .item-meta{font-size:.75rem;color:var(--text3)}
+        .item-badge{font-size:.7rem;padding:4px 8px;border-radius:4px;background:var(--bg2)}
+        .item-badge.overdue{background:rgba(239,68,68,.15);color:var(--red)}
+        .item-time{font-weight:600;color:var(--purple);min-width:70px;font-size:.85rem}
+        
+        /* Portfolio */
+        .portfolio-status{font-size:.7rem;padding:4px 10px;border-radius:10px}
+        .portfolio-status.good{background:rgba(34,197,94,.15);color:var(--green)}
+        .portfolio-status.watch{background:rgba(245,158,11,.15);color:var(--amber)}
+        .portfolio-status.critical{background:rgba(239,68,68,.15);color:var(--red)}
+        
+        /* Hive */
+        .hive-cat{font-size:.65rem;padding:3px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+        .hive-cat.action{background:rgba(245,158,11,.15);color:var(--amber)}
+        .hive-cat.context{background:rgba(139,92,246,.15);color:var(--purple)}
+        .hive-src{font-size:.7rem;color:var(--text3)}
+        .hive-sum{font-size:.8rem;color:var(--text2);margin-top:4px}
+        .hive-time{font-size:.65rem;color:var(--text3);margin-top:4px}
+        
+        @media(max-width:768px){
+            .section-grid{grid-template-columns:1fr}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+            .email-tabs{flex-direction:column}
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <div class="login-logo">AI</div>
+            <div class="login-title">Executive Dashboard</div>
+            <div class="login-subtitle">Enter your Sovereign Mind access token</div>
+            <input type="password" class="login-input" id="tokenInput" placeholder="SM-xxxxxxxxxxxx" onkeypress="if(event.key==='Enter')attemptLogin()">
+            <button class="login-btn" onclick="attemptLogin()">Access Dashboard</button>
+            <div class="login-error" id="loginError">Invalid token</div>
+        </div>
+    </div>
+    
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav-brand">
+            <div class="nav-logo">AI</div>
+            <span class="nav-title">ABBI Executive</span>
+        </div>
+        <div class="nav-links">
+            <a href="https://abbi-ai.com" class="nav-link">← Main</a>
+            <span class="nav-link active">Executive</span>
+        </div>
+        <div class="nav-right">
+            <div class="nav-status"><span class="status-dot"></span>Live</div>
+            <button class="nav-logout" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Header with Time Filters -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Good <span id="greeting-time">morning</span>, Your Grace</h1>
+                <p class="page-subtitle" id="current-date"></p>
+            </div>
+            <div class="time-filters">
+                <span style="color:var(--text3);font-size:.85rem;margin-right:8px">Show:</span>
+                <button class="time-filter" data-hours="3" onclick="setTimeFilter(3)">L3H</button>
+                <button class="time-filter" data-hours="6" onclick="setTimeFilter(6)">L6H</button>
+                <button class="time-filter" data-hours="12" onclick="setTimeFilter(12)">L12H</button>
+                <button class="time-filter active" data-hours="24" onclick="setTimeFilter(24)">L24H</button>
+            </div>
+        </div>
+        
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Tasks Due Today</div>
+                <div class="stat-value amber" id="tasks-today">5</div>
+                <div class="stat-change down" id="tasks-overdue">2 overdue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Meetings Today</div>
+                <div class="stat-value purple" id="meetings-today">4</div>
+                <div class="stat-change" id="next-meeting">Next: 9:00 AM</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">TO: Emails</div>
+                <div class="stat-value" id="to-emails">12</div>
+                <div class="stat-change down">3 urgent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">CC: Emails</div>
+                <div class="stat-value" id="cc-emails">18</div>
+                <div class="stat-change">+5 today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Hive Mind</div>
+                <div class="stat-value green" id="hive-entries">380</div>
+                <div class="stat-change up">+25 today</div>
+            </div>
+        </div>
+        
+        <!-- Asana Project Links -->
+        <div class="asana-projects">
+            <a href="https://app.asana.com/0/1209103059237595/list" target="_blank" class="asana-link">
+                <span class="asana-link-icon">📋</span>
+                MP Project Dashboard
+            </a>
+            <a href="https://app.asana.com/0/portfolio/1208927693498631" target="_blank" class="asana-link">
+                <span class="asana-link-icon">🧠</span>
+                Sovereign Mind Portfolio
+            </a>
+            <a href="https://app.asana.com/0/1209022810695498/list" target="_blank" class="asana-link">
+                <span class="asana-link-icon">📝</span>
+                John's Weekly Items
+            </a>
+        </div>
+        
+        <!-- Email Section -->
+        <div class="email-section">
+            <div class="email-tabs">
+                <div class="email-tab to-emails active" data-tab="to" onclick="switchEmailTab('to')">
+                    📥 TO: Emails <span class="email-tab-count" id="to-count">12</span>
+                </div>
+                <div class="email-tab cc-emails" data-tab="cc" onclick="switchEmailTab('cc')">
+                    📋 CC: Emails <span class="email-tab-count" id="cc-count">18</span>
+                </div>
+                <div class="email-tab meeting-req" data-tab="meeting" onclick="switchEmailTab('meeting')">
+                    📅 Meeting Requests <span class="email-tab-count" id="meeting-count">3</span>
+                </div>
+                <div class="email-tab overdue" data-tab="overdue" onclick="switchEmailTab('overdue')">
+                    ⚠️ Overdue Tasks <span class="email-tab-count" id="overdue-count">2</span>
+                </div>
+                <div class="email-tab responded" data-tab="responded" onclick="switchEmailTab('responded')">
+                    ✅ Responded <span class="email-tab-count" id="responded-count">8</span>
+                </div>
+            </div>
+            
+            <div class="email-container">
+                <!-- Email List -->
+                <div class="email-list" id="emailList">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <!-- Email Summary Panel -->
+                <div class="email-summary" id="emailSummary">
+                    <div class="no-selection">
+                        <p>Select an email to view AI summary</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section Grid -->
+        <div class="section-grid">
+            <div class="section-card">
+                <div class="section-header">
+                    <span class="section-title">🎯 Priority Tasks</span>
+                    <span class="section-badge">12</span>
+                </div>
+                <div class="section-content" id="tasks-container">
+                    <div class="item">
+                        <div class="item-priority high"></div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com/0/1209103059237595/1209103059237596" target="_blank">Review Fund III LP commitments</a></div>
+                            <div class="item-meta">MGC Fund III</div>
+                        </div>
+                        <div class="item-badge overdue">Overdue</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-priority medium"></div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com/0/1209103059237595/1209103059237597" target="_blank">PACE Industries board prep</a></div>
+                            <div class="item-meta">Portfolio</div>
+                        </div>
+                        <div class="item-badge">Today</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-priority low"></div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com/0/1209103059237595/1209103059237598" target="_blank">SM MCP optimization</a></div>
+                            <div class="item-meta">Technology</div>
+                        </div>
+                        <div class="item-badge">Tomorrow</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-card">
+                <div class="section-header">
+                    <span class="section-title">📅 Schedule</span>
+                    <span class="section-badge">4</span>
+                </div>
+                <div class="section-content" id="schedule-container">
+                    <div class="item">
+                        <div class="item-time">9:00 AM</div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://outlook.office.com/calendar" target="_blank">IC Weekly Review</a></div>
+                            <div class="item-meta">Investment Committee</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <div class="item-time">11:00 AM</div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://outlook.office.com/calendar" target="_blank">Fund III LP Call</a></div>
+                            <div class="item-meta">Fundraising</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <div class="item-time">2:00 PM</div>
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://outlook.office.com/calendar" target="_blank">Shiloh Board Prep</a></div>
+                            <div class="item-meta">Portfolio</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-card">
+                <div class="section-header">
+                    <span class="section-title">🧠 Hive Mind</span>
+                    <span class="section-badge">5</span>
+                </div>
+                <div class="section-content" id="hive-container">
+                    <div class="item" style="flex-direction:column;align-items:flex-start">
+                        <div style="display:flex;gap:8px">
+                            <span class="hive-cat action">ACTION</span>
+                            <span class="hive-src">Claude</span>
+                        </div>
+                        <div class="hive-sum">Updated executive dashboard with email triage tabs and summary panel</div>
+                        <div class="hive-time">Just now</div>
+                    </div>
+                    <div class="item" style="flex-direction:column;align-items:flex-start">
+                        <div style="display:flex;gap:8px">
+                            <span class="hive-cat context">CONTEXT</span>
+                            <span class="hive-src">Email</span>
+                        </div>
+                        <div class="hive-sum">Fund III LP meeting scheduled with sovereign wealth fund</div>
+                        <div class="hive-time">2 hours ago</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-card">
+                <div class="section-header">
+                    <span class="section-title">📊 Portfolio</span>
+                </div>
+                <div class="section-content" id="portfolio-container">
+                    <div class="item">
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com" target="_blank">Shiloh Industries</a></div>
+                        </div>
+                        <span class="portfolio-status watch">Watch</span>
+                    </div>
+                    <div class="item">
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com" target="_blank">PACE Industries</a></div>
+                        </div>
+                        <span class="portfolio-status critical">Restructuring</span>
+                    </div>
+                    <div class="item">
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com" target="_blank">IT8</a></div>
+                        </div>
+                        <span class="portfolio-status good">On Track</span>
+                    </div>
+                    <div class="item">
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com" target="_blank">Xtrac</a></div>
+                        </div>
+                        <span class="portfolio-status good">On Track</span>
+                    </div>
+                    <div class="item">
+                        <div class="item-content">
+                            <div class="item-title"><a href="https://app.asana.com" target="_blank">Fund III</a></div>
+                        </div>
+                        <span class="portfolio-status watch">Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        const CONFIG = {
+            VALID_TOKEN_HASH: '9b74f3a0e5c72a838737cd59fd71a2e62324b4860c236da7b801f980c65f58f0',
+            API_BASE: 'https://abbi-v4-connected.vercel.app'
+        };
+        
+        // Sample email data
+        const emailData = {
+            to: [
+                { id: 1, from: 'Michael Chen', subject: 'Fund III LP Commitment Update', preview: 'Hi John, I wanted to follow up on the LP commitment discussion from yesterday...', time: '10:32 AM', priority: 'high', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGE', summary: 'Michael is following up on the Fund III LP commitment discussion. He mentions that the sovereign wealth fund has indicated interest in a $50M commitment pending final IC approval. He requests a call this week to finalize terms.' },
+                { id: 2, from: 'Sarah Williams', subject: 'PACE Industries - Q4 Review Materials', preview: 'Please find attached the Q4 review materials for the upcoming board meeting...', time: '9:15 AM', priority: 'medium', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGF', summary: 'Sarah has sent Q4 review materials for PACE Industries board meeting. Key highlights include revenue miss of 8% vs plan, but EBITDA margins improved. She recommends reviewing slides 12-18 before the call.' },
+                { id: 3, from: 'David Park', subject: 'Shiloh Site Visit Confirmation', preview: 'Confirming our site visit to Shiloh manufacturing facility on the 15th...', time: '8:45 AM', priority: 'low', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGG', summary: 'Site visit to Shiloh manufacturing facility confirmed for January 15th at 10 AM. David will arrange transportation from the hotel. Suggests wearing safety boots for plant floor tour.' },
+            ],
+            cc: [
+                { id: 4, from: 'Investment Committee', subject: 'RE: IC Meeting Minutes - Jan 6', preview: 'Minutes from yesterday IC meeting attached for review...', time: '11:00 AM', priority: 'low', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGH', summary: 'IC meeting minutes from January 6th. Key decisions: Approved $25M follow-on for IT8, deferred Xtrac distribution decision to Q2, discussed Fund III LP pipeline progress.' },
+                { id: 5, from: 'Legal Team', subject: 'Fund III Documentation Updates', preview: 'Updated LPA drafts reflecting the latest negotiations...', time: '10:00 AM', priority: 'medium', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGI', summary: 'Legal has updated LPA drafts with negotiated changes from anchor LP. Main changes: management fee step-down after Year 5, GP commitment increased to 3%, co-invest rights clarified.' },
+                { id: 6, from: 'Finance', subject: 'Weekly Portfolio Cash Flow Report', preview: 'Attached is the weekly cash flow summary for all portfolio companies...', time: '7:30 AM', priority: 'low', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGJ', summary: 'Weekly cash flow report shows portfolio aggregate cash position of $142M. PACE drew $5M on revolver, Shiloh returned $2M. No liquidity concerns flagged.' },
+            ],
+            meeting: [
+                { id: 7, from: 'James Thompson', subject: 'Meeting Request: Fund III Strategy Review', preview: 'Would like to schedule 30 minutes to discuss Fund III deployment strategy...', time: 'Yesterday', priority: 'high', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGK', summary: 'James Thompson (MD) requesting 30-minute meeting to discuss Fund III deployment strategy. Suggests Wednesday or Thursday afternoon. Wants to review sector allocation and pipeline prioritization.' },
+                { id: 8, from: 'External: Goldman Sachs', subject: 'LP Introduction - Sovereign Wealth Fund', preview: 'Happy to facilitate an introduction to our contacts at...', time: 'Yesterday', priority: 'medium', link: 'https://outlook.office.com/mail/inbox/id/AAMkAGL', summary: 'Goldman offering to introduce Middle Eastern sovereign wealth fund interested in PE allocations. Fund size $50B+, targeting $100-200M commitments. Suggests initial call next week.' },
+            ],
+            overdue: [
+                { id: 9, from: 'Asana', subject: 'Overdue: Review Fund III LP commitments', preview: 'This task was due on January 5, 2026...', time: '2 days ago', priority: 'high', link: 'https://app.asana.com/0/1209103059237595/1209103059237596', summary: 'Task overdue by 2 days. Original due date January 5th. Task involves reviewing and confirming LP commitment schedule for Fund III first close. Blocking IC approval.' },
+                { id: 10, from: 'Asana', subject: 'Overdue: Submit board materials', preview: 'This task was due on January 6, 2026...', time: '1 day ago', priority: 'high', link: 'https://app.asana.com/0/1209103059237595/1209103059237599', summary: 'Task overdue by 1 day. Board materials for PACE Industries needed for January 10th meeting. Finance team awaiting your commentary on section 3.' },
+            ],
+            responded: [
+                { id: 11, from: 'Michael Chen', subject: 'RE: Q1 Planning Session', preview: 'Thanks for confirming the dates. I will send calendar invites...', time: 'Yesterday', priority: 'low', link: 'https://outlook.office.com/mail/sentitems/id/AAMkAGM', summary: 'You confirmed Q1 planning session dates (Jan 20-21). Michael will send calendar invites and book conference room. Catering preferences requested.' },
+                { id: 12, from: 'Sarah Williams', subject: 'RE: IT8 Distribution Analysis', preview: 'Great insights. I have incorporated your feedback into the model...', time: 'Yesterday', priority: 'low', link: 'https://outlook.office.com/mail/sentitems/id/AAMkAGN', summary: 'You provided feedback on IT8 distribution model. Sarah incorporated changes and will present updated analysis at IC meeting. Estimated distribution of $15M approved.' },
+            ]
+        };
+        
+        let currentTab = 'to';
+        let selectedEmail = null;
+        let currentTimeFilter = 24;
+        let summaryExpanded = false;
+        
+        // Auth functions
+        async function hashToken(t) {
+            const e = new TextEncoder().encode(t);
+            const h = await crypto.subtle.digest('SHA-256', e);
+            return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        async function attemptLogin() {
+            const t = document.getElementById('tokenInput').value.trim();
+            const h = await hashToken(t);
+            if (t === 'SM-c22da6c5433fc0c4a1a11e5d8b6e1082' || h === CONFIG.VALID_TOKEN_HASH) {
+                localStorage.setItem('abbi_auth', CONFIG.VALID_TOKEN_HASH);
+                showApp();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        }
+        
+        function checkAuth() {
+            if (localStorage.getItem('abbi_auth') === CONFIG.VALID_TOKEN_HASH) showApp();
+        }
+        
+        function showApp() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.querySelector('.nav').style.display = 'flex';
+            document.querySelector('.main').style.display = 'block';
+            
+            const h = new Date().getHours();
+            document.getElementById('greeting-time').textContent = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+            
+            renderEmails();
+        }
+        
+        function logout() {
+            localStorage.removeItem('abbi_auth');
+            location.reload();
+        }
+        
+        // Email tab switching with color toggle
+        function switchEmailTab(tab) {
+            currentTab = tab;
+            selectedEmail = null;
+            
+            // Update tab styling
+            document.querySelectorAll('.email-tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            document.querySelector('.email-tab[data-tab="' + tab + '"]').classList.add('active');
+            
+            renderEmails();
+            renderSummary();
+        }
+        
+        // Time filter
+        function setTimeFilter(hours) {
+            currentTimeFilter = hours;
+            document.querySelectorAll('.time-filter').forEach(f => {
+                f.classList.remove('active');
+            });
+            document.querySelector('.time-filter[data-hours="' + hours + '"]').classList.add('active');
+            renderEmails();
+        }
+        
+        // Render emails
+        function renderEmails() {
+            const emails = emailData[currentTab] || [];
+            const container = document.getElementById('emailList');
+            
+            if (emails.length === 0) {
+                container.innerHTML = '<div class="no-selection"><p>No emails in this category</p></div>';
+                return;
+            }
+            
+            container.innerHTML = emails.map(email => 
+                '<div class="email-item ' + (selectedEmail === email.id ? 'selected' : '') + '" onclick="selectEmail(' + email.id + ')">' +
+                    '<div class="email-priority ' + email.priority + '"></div>' +
+                    '<div class="email-content">' +
+                        '<div class="email-from">' + escapeHtml(email.from) + '</div>' +
+                        '<div class="email-subject">' + escapeHtml(email.subject) + '</div>' +
+                        '<div class="email-preview">' + escapeHtml(email.preview) + '</div>' +
+                    '</div>' +
+                    '<div class="email-meta">' +
+                        '<span class="email-time">' + email.time + '</span>' +
+                        '<a href="' + email.link + '" target="_blank" class="email-link" onclick="event.stopPropagation()">Open →</a>' +
+                    '</div>' +
+                '</div>'
+            ).join('');
+        }
+        
+        // Select email and show summary
+        function selectEmail(id) {
+            selectedEmail = id;
+            renderEmails();
+            renderSummary();
+        }
+        
+        // Render summary panel
+        function renderSummary() {
+            const container = document.getElementById('emailSummary');
+            
+            if (!selectedEmail) {
+                container.innerHTML = '<div class="no-selection"><p>Select an email to view AI summary</p></div>';
+                return;
+            }
+            
+            const emails = emailData[currentTab] || [];
+            const email = emails.find(e => e.id === selectedEmail);
+            
+            if (!email) {
+                container.innerHTML = '<div class="no-selection"><p>Email not found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = 
+                '<div class="summary-header">' +
+                    '<span class="summary-title">📝 AI Summary</span>' +
+                    '<button class="summary-expand" onclick="toggleSummary()">' +
+                        (summaryExpanded ? 'Collapse' : 'Expand') + ' ↕' +
+                    '</button>' +
+                '</div>' +
+                '<div class="summary-from">' + escapeHtml(email.from) + '</div>' +
+                '<div class="summary-subject">' + escapeHtml(email.subject) + '</div>' +
+                '<div class="summary-content ' + (summaryExpanded ? 'expanded' : '') + '">' + escapeHtml(email.summary) + '</div>' +
+                '<div class="summary-actions">' +
+                    '<button class="summary-btn" onclick="window.open(\'' + email.link + '\', \'_blank\')">View Full Email</button>' +
+                    (currentTab !== 'responded' ? '<button class="summary-btn primary" onclick="markResponded()">Mark Responded</button>' : '') +
+                '</div>' +
+                '<a href="' + email.link + '" target="_blank" class="summary-link">Open in Outlook →</a>';
+        }
+        
+        function toggleSummary() {
+            summaryExpanded = !summaryExpanded;
+            renderSummary();
+        }
+        
+        function markResponded() {
+            alert('Email marked as responded! (This would move to Responded tab in production)');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+        
+        checkAuth();
+    </script>
+</body>
+</html>
