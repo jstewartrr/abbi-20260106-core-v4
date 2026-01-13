@@ -14,13 +14,14 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
+            -webkit-tap-highlight-color: transparent;
         }
         .container {
-            max-width: 1200px;
+            max-width: 600px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
         .panel {
@@ -31,20 +32,21 @@
         }
         h1 {
             text-align: center;
-            color: #667eea;
+            color: white;
             margin-bottom: 10px;
-            grid-column: 1 / -1;
+            font-size: 24px;
         }
         .subtitle {
             text-align: center;
             color: white;
             margin-bottom: 20px;
             font-size: 14px;
-            grid-column: 1 / -1;
+            opacity: 0.9;
         }
         .avatar-wrapper {
-            width: 400px;
-            height: 400px;
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1;
             margin: 0 auto 20px;
             cursor: pointer;
             transition: transform 0.3s ease;
@@ -75,35 +77,12 @@
             margin-bottom: 20px;
             min-height: 28px;
         }
-        .btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            margin-bottom: 10px;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-        .btn:active {
-            transform: translateY(0);
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
         .transcription-box {
             background: #f8f9fa;
             border-radius: 12px;
             padding: 20px;
-            height: 400px;
+            min-height: 300px;
+            max-height: 50vh;
             overflow-y: auto;
             margin-bottom: 20px;
         }
@@ -144,12 +123,7 @@
         .text-input-box {
             background: #f8f9fa;
             border-radius: 12px;
-            padding: 20px;
-        }
-        .text-input-box h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 16px;
+            padding: 15px;
         }
         .text-input-form {
             display: flex;
@@ -182,28 +156,6 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            margin-top: 20px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #1565c0;
-        }
-        .info-box strong {
-            display: block;
-            margin-bottom: 8px;
-        }
-        .info-box ul {
-            margin-left: 20px;
-            margin-top: 8px;
-        }
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body>
@@ -211,7 +163,7 @@
     <div class="subtitle">abbi-openai • GPT-4o + MCP Tools</div>
     
     <div class="container">
-        <!-- Left Panel: Voice Control -->
+        <!-- Avatar Panel -->
         <div class="panel">
             <div class="avatar-wrapper" id="abbiAvatar" onclick="toggleABBI()">
                 <video id="abbiVideo"
@@ -223,40 +175,24 @@
                 </video>
             </div>
 
-            <div class="status-text" id="abbiStatus">Tap to start voice session</div>
-
-            <button class="btn" id="toggleBtn" onclick="toggleABBI()">Start Voice Session</button>
-
-            <div class="info-box">
-                <strong>Testing Checklist:</strong>
-                <ul>
-                    <li>Ask: "What are the recent Hive Mind entries?"</li>
-                    <li>Ask: "Search for website in Hive Mind"</li>
-                    <li>Say: "Remember that I prefer GPT-4o"</li>
-                    <li>Test "wait" command - she should stay quiet</li>
-                </ul>
-            </div>
+            <div class="status-text" id="abbiStatus">Tap avatar to start</div>
         </div>
 
-        <!-- Right Panel: Transcription & Text Input -->
+        <!-- Transcription Panel -->
         <div class="panel">
             <div class="transcription-box" id="transcriptionBox">
-                <h3>📝 Live Transcription</h3>
+                <h3>📝 Conversation</h3>
                 <div id="transcripts"></div>
             </div>
 
             <div class="text-input-box">
-                <h3>⌨️ Type Your Question</h3>
                 <div class="text-input-form">
-                    <input type="text" 
-                           id="textInput" 
-                           class="text-input" 
-                           placeholder="Type a question for ABBI to answer verbally..."
+                    <input type="text"
+                           id="textInput"
+                           class="text-input"
+                           placeholder="Type to ABBI..."
                            disabled>
                     <button class="send-btn" id="sendBtn" onclick="sendTextMessage()" disabled>Send</button>
-                </div>
-                <div style="font-size: 12px; color: #666; margin-top: 10px;">
-                    Start voice session first, then type messages for ABBI to respond verbally
                 </div>
             </div>
         </div>
@@ -329,7 +265,6 @@
         window.toggleABBI = async function() {
             const avatar = document.getElementById('abbiAvatar');
             const status = document.getElementById('abbiStatus');
-            const toggleBtn = document.getElementById('toggleBtn');
             const textInput = document.getElementById('textInput');
             const sendBtn = document.getElementById('sendBtn');
 
@@ -350,17 +285,15 @@
 
                 abbiConversation = null;
                 avatar.classList.remove('listening', 'speaking');
-                status.textContent = 'Tap to start voice session';
-                toggleBtn.textContent = 'Start Voice Session';
+                status.textContent = 'Tap avatar to start';
                 textInput.disabled = true;
                 sendBtn.disabled = true;
                 return;
             }
 
             try {
-                status.textContent = 'Connecting to ABBI...';
+                status.textContent = 'Connecting...';
                 avatar.classList.add('listening');
-                toggleBtn.disabled = true;
 
                 // Request microphone permission
                 await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -381,11 +314,9 @@
                     },
                     onConnect: () => {
                         console.log('Connected');
-                        status.textContent = '✅ Connected - Speak or type';
+                        status.textContent = '🎙️ Listening...';
                         avatar.classList.remove('listening');
                         avatar.classList.add('speaking');
-                        toggleBtn.textContent = 'End Session';
-                        toggleBtn.disabled = false;
                         textInput.disabled = false;
                         sendBtn.disabled = false;
                     },
@@ -399,7 +330,7 @@
                     },
                     onDisconnect: () => {
                         console.log('Disconnected');
-                        status.textContent = 'Session ended';
+                        status.textContent = 'Tap avatar to start';
                         avatar.classList.remove('listening', 'speaking');
 
                         // Clear video stream
@@ -410,8 +341,6 @@
                         }
 
                         abbiConversation = null;
-                        toggleBtn.textContent = 'Start Voice Session';
-                        toggleBtn.disabled = false;
                         textInput.disabled = true;
                         sendBtn.disabled = true;
                     },
@@ -449,7 +378,7 @@
                     },
                     onError: (error) => {
                         console.error('ABBI error:', error);
-                        status.textContent = '❌ Error - Check console';
+                        status.textContent = '❌ Error - Tap to retry';
                         avatar.classList.remove('listening', 'speaking');
 
                         // Clear video stream
@@ -460,8 +389,6 @@
                         }
 
                         abbiConversation = null;
-                        toggleBtn.textContent = 'Start Voice Session';
-                        toggleBtn.disabled = false;
                         textInput.disabled = true;
                         sendBtn.disabled = true;
                     },
@@ -489,11 +416,8 @@
                     videoElement.srcObject = null;
                 }
 
-                toggleBtn.disabled = false;
-                toggleBtn.textContent = 'Start Voice Session';
-
                 if (error.name === 'NotAllowedError') {
-                    status.textContent = '❌ Microphone access denied';
+                    status.textContent = '❌ Microphone denied';
                 } else {
                     status.textContent = '❌ Connection failed';
                 }
