@@ -1,7 +1,17 @@
 // ElevenLabs Custom Tool: Generic MCP Tool Caller
-// Allows ABBI to call any tool from the load-balancer MCP server
+// Allows ABBI to call any tool from direct MCP servers
+// Routes to correct MCP server based on tool name
 
-const MCP_ENDPOINT = 'https://mcp.abbi-ai.com/mcp';
+const MCP_ENDPOINTS = {
+  // Snowflake database
+  'query_snowflake': 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp',
+
+  // Azure CLI
+  'azure_cli': 'https://cv-sm-azure-cli-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp',
+
+  // Default fallback
+  'default': 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp'
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,8 +36,11 @@ export default async function handler(req, res) {
       });
     }
 
+    // Determine which MCP endpoint to use based on tool name
+    const mcpEndpoint = MCP_ENDPOINTS[tool_name] || MCP_ENDPOINTS['default'];
+
     // Call the MCP tool
-    const response = await fetch(MCP_ENDPOINT, {
+    const response = await fetch(mcpEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

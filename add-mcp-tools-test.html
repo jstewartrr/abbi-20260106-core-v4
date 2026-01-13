@@ -107,22 +107,19 @@
         <div class="subtitle">Enable load-balancer MCP integration</div>
 
         <div class="info-box">
-            <strong>What this does:</strong> Adds 13 powerful MCP tools to ABBI (agent_2501ketq01k7e4vrnbrvvefa99ej), giving her access to:
+            <strong>What this does:</strong> Adds Snowflake MCP tool to ABBI (agent_2501ketq01k7e4vrnbrvvefa99ej), giving her access to:
             <ul style="margin: 10px 0 0 20px;">
-                <li>Snowflake database queries</li>
-                <li>Google Drive search & read</li>
-                <li>Asana task management</li>
-                <li>Microsoft 365 email & calendar</li>
-                <li>Dropbox file access</li>
-                <li>Vercel deployment monitoring</li>
-                <li>Cloudflare zone management</li>
-                <li>Mac Studio command execution</li>
-                <li>Vertex AI image generation</li>
+                <li><strong>Snowflake database queries</strong> - Query Hive Mind, projects, tasks, and any database</li>
             </ul>
+            <br>
+            <small>Note: This tool is already available via read/search/write_hive_mind, but query_snowflake gives ABBI direct SQL access to all data.</small>
         </div>
 
         <div class="tool-list" id="toolList">
-            <div class="loading">Loading tool list...</div>
+            <div class="tool-item">
+                <div class="tool-name">query_snowflake</div>
+                <div class="tool-desc">Execute SQL queries on Sovereign Mind Snowflake database</div>
+            </div>
         </div>
 
         <button id="addButton" onclick="addMCPTools()">
@@ -133,31 +130,6 @@
     </div>
 
     <script>
-        const tools = [
-            { name: 'query_snowflake', desc: 'Execute SQL on Snowflake database' },
-            { name: 'search_google_drive', desc: 'Search Drive files by name/content' },
-            { name: 'read_drive_file', desc: 'Read text from Drive files' },
-            { name: 'list_asana_tasks', desc: 'List Asana tasks with filters' },
-            { name: 'create_asana_task', desc: 'Create new Asana tasks' },
-            { name: 'read_emails', desc: 'Read M365 inbox emails' },
-            { name: 'send_email', desc: 'Send emails via M365' },
-            { name: 'list_calendar_events', desc: 'View upcoming calendar events' },
-            { name: 'search_dropbox', desc: 'Search Dropbox files' },
-            { name: 'list_vercel_deployments', desc: 'Check Vercel deployment status' },
-            { name: 'check_cloudflare_zones', desc: 'List Cloudflare DNS zones' },
-            { name: 'run_mac_command', desc: 'Execute shell commands on Mac Studio' },
-            { name: 'generate_image', desc: 'Generate images with Vertex AI Imagen 3' }
-        ];
-
-        // Populate tool list
-        const toolList = document.getElementById('toolList');
-        toolList.innerHTML = tools.map(tool => `
-            <div class="tool-item">
-                <div class="tool-name">${tool.name}</div>
-                <div class="tool-desc">${tool.desc}</div>
-            </div>
-        `).join('');
-
         async function addMCPTools() {
             const button = document.getElementById('addButton');
             const result = document.getElementById('result');
