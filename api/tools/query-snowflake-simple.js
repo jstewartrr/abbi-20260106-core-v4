@@ -89,10 +89,9 @@ export default async function handler(req, res) {
         }
       }
 
+      // Return ONLY message for voice - no data arrays
       return res.json({
         success: true,
-        row_count: rowCount,
-        data: limitedRows,
         message: message
       });
     }
