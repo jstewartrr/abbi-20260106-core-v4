@@ -98,13 +98,22 @@ export default async function handler(req, res) {
 
     const updatedAgent = await updateResponse.json();
 
+    // Verify tools were actually added
+    const verifyTools = updatedAgent.conversation_config?.client_tools?.tools || [];
+
     return res.json({
       success: true,
       agent_id: agentId,
       tools_added: newTools.length,
       total_tools: updatedTools.length,
+      verified_tools: verifyTools.length,
       new_tools: newTools.map(t => t.name),
-      message: `Successfully added ${newTools.length} MCP tools to agent`
+      message: `Successfully added ${newTools.length} MCP tools to agent`,
+      debug: {
+        before_tools: existingTools.length,
+        after_tools: verifyTools.length,
+        update_response_status: updateResponse.status
+      }
     });
 
   } catch (error) {
