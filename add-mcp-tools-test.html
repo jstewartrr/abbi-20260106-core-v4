@@ -107,18 +107,29 @@
         <div class="subtitle">Enable load-balancer MCP integration</div>
 
         <div class="info-box">
-            <strong>What this does:</strong> Adds Snowflake MCP tool to ABBI (agent_2501ketq01k7e4vrnbrvvefa99ej), giving her access to:
+            <strong>What this does:</strong> Adds all MCP tools to ABBI (agent_2501ketq01k7e4vrnbrvvefa99ej), giving her access to:
             <ul style="margin: 10px 0 0 20px;">
-                <li><strong>Snowflake database queries</strong> - Query Hive Mind, projects, tasks, and any database</li>
+                <li><strong>Hive Mind read/search/write</strong> - Access knowledge base entries</li>
+                <li><strong>Snowflake database queries</strong> - Direct SQL access to all data</li>
             </ul>
-            <br>
-            <small>Note: This tool is already available via read/search/write_hive_mind, but query_snowflake gives ABBI direct SQL access to all data.</small>
         </div>
 
         <div class="tool-list" id="toolList">
             <div class="tool-item">
+                <div class="tool-name">read_hive_mind</div>
+                <div class="tool-desc">Read recent Hive Mind entries</div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-name">search_hive_mind</div>
+                <div class="tool-desc">Search Hive Mind by keyword or category</div>
+            </div>
+            <div class="tool-item">
+                <div class="tool-name">write_hive_mind</div>
+                <div class="tool-desc">Create new Hive Mind entries</div>
+            </div>
+            <div class="tool-item">
                 <div class="tool-name">query_snowflake</div>
-                <div class="tool-desc">Execute SQL queries on Sovereign Mind Snowflake database</div>
+                <div class="tool-desc">Execute SQL queries on Snowflake database</div>
             </div>
         </div>
 

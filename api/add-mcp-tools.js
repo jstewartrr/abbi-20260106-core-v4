@@ -8,8 +8,36 @@ export default async function handler(req, res) {
 
   const agentId = req.query.agent_id || 'agent_2501ketq01k7e4vrnbrvvefa99ej';
 
-  // Start with Snowflake tool only (confirmed working)
+  // All MCP tools for ABBI
   const mcpTools = [
+    {
+      name: 'read_hive_mind',
+      description: 'Read recent entries from Hive Mind. Returns the last 5-20 entries with category, source, summary, priority, workstream, and timestamps.',
+      url: 'https://abbi-ai.com/api/tools/read-hive-mind',
+      body: {
+        limit: 5
+      }
+    },
+    {
+      name: 'search_hive_mind',
+      description: 'Search Hive Mind entries by keyword or category. Use this to find specific information or topics in the knowledge base.',
+      url: 'https://abbi-ai.com/api/tools/search-hive-mind',
+      body: {
+        query: 'REQUIRED: Search query string',
+        category: 'Optional: Filter by category'
+      }
+    },
+    {
+      name: 'write_hive_mind',
+      description: 'Write a new entry to Hive Mind. Use this to save important information, decisions, or context for future reference.',
+      url: 'https://abbi-ai.com/api/tools/write-hive-mind',
+      body: {
+        category: 'REQUIRED: Entry category',
+        summary: 'REQUIRED: Entry content',
+        priority: 'Optional: Priority level',
+        workstream: 'Optional: Related workstream'
+      }
+    },
     {
       name: 'query_snowflake',
       description: 'Execute SQL query on Sovereign Mind Snowflake database. Use this to query the Hive Mind (SOVEREIGN_MIND.HIVE_MIND.ENTRIES), projects, tasks, or any other data in the database.',
