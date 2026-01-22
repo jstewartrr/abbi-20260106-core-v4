@@ -529,12 +529,9 @@
             document.querySelector('.main').style.display = 'block';
 
             await fetchLiveData();
-            renderContent();
+            renderContent(); // v8.88: Will auto-trigger Daily Briefing
             updateWeather();
             updateHeaderTime();
-
-            // v8.88: Auto-load Daily Briefing from Snowflake cache on page load
-            setTimeout(() => generateDailyBriefing(), 500);
         }
 
 
@@ -3197,9 +3194,10 @@
             console.log('📍 renderContent() called with currentView:', currentView);
             const container = document.getElementById('contentList');
 
-            // Don't re-render if we're in daily-briefing mode
+            // v8.88: Auto-trigger daily briefing on load
             if (currentView === 'daily-briefing') {
-                console.log('⏭️ Skipping render - daily briefing is active');
+                console.log('🚀 Auto-loading Daily Briefing from cache');
+                generateDailyBriefing();
                 return;
             }
 
