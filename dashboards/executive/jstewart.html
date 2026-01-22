@@ -2774,8 +2774,6 @@
                 });
                 console.log('📧 First 3 emails:', data.emails?.slice(0, 3));
 
-                countEl.textContent = data.emails_requiring_attention || 0;
-
                 let titleText = `Daily Briefing (${data.emails_requiring_attention} emails)`;
                 if (data.cached) {
                     titleText += ` • Cached ${data.cache_age_minutes}m ago`;
@@ -3184,7 +3182,6 @@
                 if (msgInterval) clearInterval(msgInterval);
 
                 console.error('Briefing generation failed:', error);
-                countEl.textContent = 'Error';
                 container.innerHTML = '<div class="no-selection"><p>❌ Failed to generate briefing</p><p style="font-size:.8rem;color:var(--text2);margin-top:8px">' + escapeHtml(error.message) + '</p><p style="font-size:.7rem;color:var(--text3);margin-top:12px">Check console for details. Try refreshing the page.</p></div>';
             }
         }
