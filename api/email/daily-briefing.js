@@ -126,13 +126,13 @@ export default async function handler(req, res) {
         const cachedResults = await snowflakeCall(cacheQuery);
 
         if (cachedResults && cachedResults.length > 0) {
-          // Check if results are fresh (< 2 hours old)
+          // Check if results are fresh (< 24 hours old - same day cache is valid)
           const latestProcessed = new Date(cachedResults[0].PROCESSED_AT);
           const ageMinutes = (Date.now() - latestProcessed.getTime()) / 60000;
 
           console.log(`📦 Found ${cachedResults.length} cached results, age: ${ageMinutes.toFixed(1)} minutes`);
 
-          if (ageMinutes < 120) {
+          if (ageMinutes < 1440) {
             console.log('✅ Using cached results (fresh)');
 
             // Transform Snowflake results to match expected format
@@ -165,7 +165,7 @@ export default async function handler(req, res) {
               last_processed: latestProcessed.toISOString()
             });
           } else {
-            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes), refreshing...`);
+            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes > 24 hours), refreshing...`);
           }
         } else {
           console.log('📭 No cached results found, processing fresh...');
