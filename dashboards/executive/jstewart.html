@@ -1184,38 +1184,34 @@
 
         // Auto-mark email as read following v6.2 protocol
         async function autoMarkEmailRead(emailId, view) {
-            // Categories that should be auto-marked as read
-            const autoReadCategories = [
-                'email-cc-internal',
-                'email-cc-external',
-                'email-fyi'
-            ];
-
-            // Categories that should NEVER be auto-marked as read
+            // Categories that should NEVER be auto-marked as read (high priority)
             const neverReadCategories = [
                 'email-investor',
-                'email-portfolio-ceo-cfo'
+                'email-portfolio-ceo-cfo',
+                'email-urgent'
             ];
 
-            // Check if this category should be auto-marked as read
-            if (autoReadCategories.includes(view)) {
-                try {
-                    await fetch('/api/email/mark-read', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message_ids: [emailId],
-                            user: 'john@middleground.com',
-                            is_read: true
-                        })
-                    });
-                    console.log(`Email ${emailId} marked as read (category: ${view})`);
-                } catch (error) {
-                    console.error('Error auto-marking email as read:', error);
-                }
+            // Skip auto-marking for high-priority categories
+            if (neverReadCategories.includes(view)) {
+                console.log(`Email ${emailId} NOT marked as read (high priority category: ${view})`);
+                return;
             }
-            // For all other categories (URGENT, Needs Reply, To: Internal/External, Meeting Requests),
-            // keep unread per v6.2 protocol rules
+
+            // Mark all other emails as read after viewing to prevent re-processing
+            try {
+                await fetch('/api/email/mark-read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message_ids: [emailId],
+                        user: 'jstewart@middleground.com',
+                        is_read: true
+                    })
+                });
+                console.log(`✓ Email ${emailId} marked as read (category: ${view})`);
+            } catch (error) {
+                console.error('Error auto-marking email as read:', error);
+            }
         }
 
         // Process all emails with AI triage
