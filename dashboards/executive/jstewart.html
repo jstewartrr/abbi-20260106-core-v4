@@ -1195,24 +1195,20 @@
 
         // Auto-mark email as read following v6.2 protocol
         async function autoMarkEmailRead(emailId, viewOrMailbox, explicitMailbox = null) {
-            // Categories that should NEVER be auto-marked as read (high priority)
-            const neverReadCategories = [
+            // High-priority categories that should be flagged when viewed
+            const highPriorityCategories = [
                 'email-investor',
                 'email-portfolio-ceo-cfo',
                 'email-urgent'
             ];
 
-            // Skip auto-marking for high-priority categories
-            if (neverReadCategories.includes(viewOrMailbox)) {
-                console.log(`Email ${emailId} NOT marked as read (high priority category: ${viewOrMailbox})`);
-                return;
-            }
-
             // Determine mailbox: use explicitMailbox if provided, otherwise check if viewOrMailbox looks like an email
             const mailbox = explicitMailbox || (viewOrMailbox?.includes('@') ? viewOrMailbox : 'jstewart@middleground.com');
 
-            // Mark all other emails as read after viewing to prevent re-processing
+            const isHighPriority = highPriorityCategories.includes(viewOrMailbox);
+
             try {
+                // Always mark as read
                 await fetch('/api/email/mark-read', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1222,9 +1218,42 @@
                         is_read: true
                     })
                 });
-                console.log(`✓ Email ${emailId} marked as read for ${mailbox}`);
+
+                if (isHighPriority) {
+                    // Flag high-priority emails for follow-up
+                    await fetch('/api/email/flag-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message_ids: [emailId],
+                            user: mailbox,
+                            flag_status: 'flagged'
+                        })
+                    });
+                    console.log(`✓ Email ${emailId} marked as read and FLAGGED (high priority) for ${mailbox}`);
+                } else {
+                    console.log(`✓ Email ${emailId} marked as read for ${mailbox}`);
+                }
             } catch (error) {
                 console.error('Error auto-marking email as read:', error);
+            }
+        }
+
+        // Unflag email when processed/actioned
+        async function unflagEmail(emailId, mailbox) {
+            try {
+                await fetch('/api/email/flag-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message_ids: [emailId],
+                        user: mailbox || 'jstewart@middleground.com',
+                        flag_status: 'notFlagged'
+                    })
+                });
+                console.log(`✓ Email ${emailId} unflagged (processed)`);
+            } catch (error) {
+                console.error('Error unflagging email:', error);
             }
         }
 
@@ -1595,6 +1624,9 @@
                 const result = await response.json();
 
                 if (result.success) {
+                    // Unflag the email (processed/actioned)
+                    await unflagEmail(emailId, 'john@middleground.com');
+
                     // Close expanded view and return to list
                     expandedEmailId = null;
 
