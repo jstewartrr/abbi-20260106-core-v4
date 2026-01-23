@@ -1,17 +1,21 @@
-// ABBI Chat Q&A - Clean rebuild v8.92
+// ABBI Chat Q&A - v8.100 with full dashboard tools
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+const UNIFIED_GATEWAY = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
-// MCP tool call helper with timeout
+// MCP tool call helper with timeout - routes to unified gateway for all tools
 async function mcpCall(tool, args = {}) {
-  const actualToolName = tool.startsWith('m365_') ? tool.substring(5) : tool;
-  console.log(`🔧 [mcpCall] Calling ${actualToolName} with args:`, JSON.stringify(args).substring(0, 200));
+  // Remove tool prefix - unified gateway handles routing internally
+  const actualToolName = tool.startsWith('m365_') || tool.startsWith('asana_')
+    ? tool.split('_').slice(1).join('_')  // Remove prefix: m365_send_email → send_email
+    : tool;
+
+  console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) with args:`, JSON.stringify(args).substring(0, 200));
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
   try {
-    const res = await fetch(M365_GATEWAY, {
+    const res = await fetch(UNIFIED_GATEWAY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -111,11 +115,12 @@ User Question: ${question}`;
 
     console.log(`💬 Sending ${messages.length} messages to Claude (including history)`);
 
-    // Define M365 tools for ABBI
+    // Define all tools for ABBI - Email, Calendar, Asana
     const tools = [
+      // === EMAIL TOOLS ===
       {
         name: 'm365_send_email',
-        description: 'Send an email from John Stewart\'s account (jstewart@middleground.com)',
+        description: 'Send a new email from John Stewart\'s account (jstewart@middleground.com)',
         input_schema: {
           type: 'object',
           properties: {
@@ -130,15 +135,117 @@ User Question: ${question}`;
       },
       {
         name: 'm365_reply_email',
-        description: 'Reply to an email',
+        description: 'Reply to an email. Use reply_all to include all original recipients.',
         input_schema: {
           type: 'object',
           properties: {
-            message_id: { type: 'string', description: 'ID of the email to reply to' },
+            message_id: { type: 'string', description: 'ID of the email to reply to (from EMAIL CONTEXT)' },
             body: { type: 'string', description: 'Reply body text' },
             reply_all: { type: 'boolean', description: 'Reply to all recipients (default: false)' }
           },
           required: ['message_id', 'body']
+        }
+      },
+      {
+        name: 'm365_forward_email',
+        description: 'Forward an email to new recipients. Use this to add people to an existing email thread.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            message_id: { type: 'string', description: 'ID of the email to forward (from EMAIL CONTEXT)' },
+            to: { type: 'array', items: { type: 'string' }, description: 'New recipient email addresses' },
+            comment: { type: 'string', description: 'Your message to add before the forwarded email (optional)' }
+          },
+          required: ['message_id', 'to']
+        }
+      },
+      // === CALENDAR TOOLS ===
+      {
+        name: 'm365_create_event',
+        description: 'Create a new calendar event/meeting',
+        input_schema: {
+          type: 'object',
+          properties: {
+            subject: { type: 'string', description: 'Meeting title' },
+            start: { type: 'string', description: 'Start datetime in ISO format (e.g., 2026-01-24T14:00:00)' },
+            end: { type: 'string', description: 'End datetime in ISO format' },
+            attendees: { type: 'array', items: { type: 'string' }, description: 'Attendee email addresses (optional)' },
+            body: { type: 'string', description: 'Meeting description/agenda (optional)' },
+            location: { type: 'string', description: 'Meeting location (optional)' },
+            is_online: { type: 'boolean', description: 'Create as Teams meeting (optional)' }
+          },
+          required: ['subject', 'start', 'end']
+        }
+      },
+      {
+        name: 'm365_update_event',
+        description: 'Update an existing calendar event',
+        input_schema: {
+          type: 'object',
+          properties: {
+            event_id: { type: 'string', description: 'Event ID to update' },
+            subject: { type: 'string', description: 'New meeting title (optional)' },
+            start: { type: 'string', description: 'New start datetime (optional)' },
+            end: { type: 'string', description: 'New end datetime (optional)' },
+            location: { type: 'string', description: 'New location (optional)' },
+            body: { type: 'string', description: 'New description (optional)' }
+          },
+          required: ['event_id']
+        }
+      },
+      {
+        name: 'm365_delete_event',
+        description: 'Delete/cancel a calendar event',
+        input_schema: {
+          type: 'object',
+          properties: {
+            event_id: { type: 'string', description: 'Event ID to delete' }
+          },
+          required: ['event_id']
+        }
+      },
+      // === ASANA TOOLS ===
+      {
+        name: 'asana_create_task',
+        description: 'Create a new task in Asana',
+        input_schema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Task name' },
+            notes: { type: 'string', description: 'Task description/notes (optional)' },
+            project_id: { type: 'string', description: 'Project ID (MP Dashboard: 1209103059237595, Weekly Items: 1209022810695498)' },
+            assignee: { type: 'string', description: 'Assignee GID (John Stewart: 373563475019846) (optional)' },
+            due_on: { type: 'string', description: 'Due date in YYYY-MM-DD format (optional)' }
+          },
+          required: ['name']
+        }
+      },
+      {
+        name: 'asana_update_task',
+        description: 'Update an existing Asana task',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task GID to update' },
+            name: { type: 'string', description: 'New task name (optional)' },
+            notes: { type: 'string', description: 'New notes (optional)' },
+            completed: { type: 'boolean', description: 'Mark as completed (optional)' },
+            due_on: { type: 'string', description: 'New due date (optional)' }
+          },
+          required: ['task_id']
+        }
+      },
+      {
+        name: 'asana_create_project',
+        description: 'Create a new project in Asana',
+        input_schema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Project name' },
+            notes: { type: 'string', description: 'Project description (optional)' },
+            workspace: { type: 'string', description: 'Workspace GID (optional, uses default if omitted)' }
+          },
+          required: ['name']
         }
       }
     ];
@@ -156,7 +263,79 @@ User Question: ${question}`;
         max_tokens: 2000,
         messages: messages,
         tools: tools,
-        system: 'You are ABBI, John Stewart\'s AI executive assistant at Middleground Capital.\n\nCAPABILITIES:\n- Analyze emails and provide recommendations\n- Draft email responses\n- **SEND emails directly** using m365_send_email (new emails) or m365_reply_email (replies)\n- Answer questions about emails and provide context\n- Remember previous conversation history\n\nAVAILABLE CONTEXT:\n- When viewing an email, you receive the **Message ID** in the EMAIL CONTEXT section\n- This Message ID is what you need for the m365_reply_email tool (as the message_id parameter)\n- You also have from, to, subject, and body of the email\n\nWHEN USER ASKS TO SEND/REPLY:\n1. Draft the email content FIRST and show it to John\n2. Ask for confirmation: "Would you like me to send this?"\n3. After John confirms, USE THE TOOL to actually send/reply\n4. For replies: Use m365_reply_email with the message_id from EMAIL CONTEXT\n5. For new emails: Use m365_send_email with recipient addresses\n6. Report success clearly: "✓ Email sent successfully"\n\n**IMPORTANT**: You CAN and SHOULD actually send emails when John confirms. Don\'t say "I can\'t send emails" - you have the tools and authority to do so.\n\nRESPONSE FORMAT:\nFor email analysis:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe direct, concise, and professional.'
+        system: `You are ABBI, the Executive Dashboard AI assistant for John Stewart, Managing Partner at Middleground Capital (private equity).
+
+=== YOUR ROLE ===
+You manage John's Executive Dashboard which displays:
+- Unread emails from multiple accounts
+- Calendar events for today
+- Asana tasks from MP Dashboard and Weekly Items projects
+- Recent Hive Mind activity
+
+You can TAKE ACTION using tools - you're not just advisory, you execute tasks.
+
+=== CONTEXT YOU RECEIVE ===
+When viewing an email (EMAIL CONTEXT section):
+- Message ID (required for reply/forward tools)
+- From, To, CC, Subject, Body
+- Received date
+
+Additional context available:
+- List of recent emails (first 20)
+- Calendar events (first 10)
+- Current dashboard view
+
+=== TOOLS YOU HAVE ===
+
+EMAIL MANAGEMENT:
+- m365_send_email: Send new email (to, cc, subject, body)
+- m365_reply_email: Reply to email (message_id, body, reply_all)
+- m365_forward_email: Forward email to new people (message_id, to, comment)
+
+CALENDAR MANAGEMENT:
+- m365_create_event: Create meeting (subject, start, end, attendees, location, is_online)
+- m365_update_event: Update meeting (event_id, + any field to change)
+- m365_delete_event: Cancel meeting (event_id)
+
+ASANA PROJECT MANAGEMENT:
+- asana_create_task: Create task (name, notes, project_id, assignee, due_on)
+- asana_update_task: Update task (task_id, + any field to change, completed)
+- asana_create_project: Create project (name, notes, workspace)
+
+John's Constants:
+- Email: jstewart@middleground.com
+- Asana GID: 373563475019846
+- MP Dashboard Project: 1209103059237595
+- Weekly Items Project: 1209022810695498
+
+=== HOW TO WORK ===
+
+**For Action Commands** (reply, send, forward, create, schedule):
+1. Draft the content/details
+2. IMMEDIATELY USE THE TOOL to execute
+3. Report result: "✓ Done: [what you did]" or "❌ Failed: [error]"
+
+**For Questions** (what should I say, how should I respond, analyze this):
+1. Provide analysis and recommendations
+2. DO NOT use tools unless John explicitly says to execute
+
+**For "Reply and Add People"**:
+Use m365_forward_email to loop additional people into the thread with a comment.
+
+Examples:
+- "Reply saying I'll follow up tomorrow" → Draft reply, call m365_reply_email, report success
+- "Forward this to Sarah and Mark" → Call m365_forward_email with their emails
+- "Create a task for this" → Call asana_create_task with appropriate project
+- "Schedule a meeting with CFO next Tuesday 2pm" → Call m365_create_event
+- "What should I say to this?" → Provide recommendation, DON'T send
+
+**Email Analysis Format**:
+1. Recommended Action: What John should do
+2. Key Points: Important info from email
+3. Time-Sensitive: Deadlines or urgency
+4. Draft Response: Suggested reply (if applicable)
+
+Be direct, concise, professional. You're an executor, not just an advisor.`
       })
     });
 
