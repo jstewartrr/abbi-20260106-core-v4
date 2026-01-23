@@ -3101,11 +3101,38 @@
 
                         html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;border-left:4px solid ' + priorityColor + '">';
                         html += '<div style="font-size:.7rem;color:' + priorityColor + ';font-weight:700;text-transform:uppercase;margin-bottom:4px">● ' + email.priority + ' PRIORITY • ' + email.category + '</div>';
-                        html += '<div style="font-weight:600;font-size:1.1rem;margin-bottom:16px">' + escapeHtml(email.subject || 'No subject') + '</div>';
+                        html += '<div style="font-weight:600;font-size:1.1rem;margin-bottom:8px">' + escapeHtml(email.subject || 'No subject') + '</div>';
+
+                        // Email metadata (From, To, CC, Date)
+                        html += '<div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:16px;font-size:.8rem;line-height:1.6">';
+                        html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">From:</span> <span style="color:var(--text2)">' + escapeHtml(analysis.from || email.from || 'Unknown') + '</span></div>';
+
+                        if (analysis.to && analysis.to.length > 0) {
+                            const toList = Array.isArray(analysis.to) ? analysis.to.join(', ') : analysis.to;
+                            html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">To:</span> <span style="color:var(--text2)">' + escapeHtml(toList) + '</span></div>';
+                        }
+
+                        if (analysis.cc && analysis.cc.length > 0) {
+                            const ccList = Array.isArray(analysis.cc) ? analysis.cc.join(', ') : analysis.cc;
+                            html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">CC:</span> <span style="color:var(--text2)">' + escapeHtml(ccList) + '</span></div>';
+                        }
+
+                        if (analysis.received || email.received) {
+                            const dateStr = new Date(analysis.received || email.received).toLocaleString('en-US', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                            });
+                            html += '<div><span style="color:var(--text3);font-weight:600">Date:</span> <span style="color:var(--text2)">' + dateStr + '</span></div>';
+                        }
+                        html += '</div>';
 
                         // Comprehensive Executive Summary
                         if (analysis.comprehensive_summary) {
-                            html += '<div style="background:var(--bg);padding:20px;border-radius:8px;line-height:1.8;font-size:.95rem;color:var(--text);white-space:pre-wrap">';
+                            html += '<div style="background:var(--bg);padding:20px;border-radius:8px;line-height:1.8;font-size:.95rem;color:var(--text);white-space:pre-wrap;margin-bottom:16px">';
                             html += escapeHtml(analysis.comprehensive_summary);
                             html += '</div>';
                         }
@@ -3114,8 +3141,8 @@
                         if (analysis.body) {
                             html += '<div style="margin-bottom:12px">';
                             html += '<button onclick="document.getElementById(\'email-body-content\').style.display = document.getElementById(\'email-body-content\').style.display === \'none\' ? \'block\' : \'none\'; this.textContent = document.getElementById(\'email-body-content\').style.display === \'none\' ? \'▼ Show Full Email\' : \'▲ Hide Full Email\'" style="padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--text);width:100%;text-align:left">▼ Show Full Email</button>';
-                            html += '<div id="email-body-content" style="display:none;background:var(--bg);padding:16px;border-radius:8px;margin-top:8px;max-height:400px;overflow-y:auto">';
-                            html += '<div style="color:var(--text2);line-height:1.6;font-size:.85rem;white-space:pre-wrap">' + escapeHtml(analysis.body.substring(0, 5000)) + '</div>';
+                            html += '<div id="email-body-content" style="display:none;background:var(--bg);padding:16px;border-radius:8px;margin-top:8px;max-height:600px;overflow-y:auto">';
+                            html += '<div style="color:var(--text2);line-height:1.6;font-size:.85rem">' + analysis.body + '</div>';
                             html += '</div>';
                             html += '</div>';
                         }

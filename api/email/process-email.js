@@ -84,13 +84,23 @@ export default async function handler(req, res) {
     console.log('✅ Email fetched:', {
       subject: emailData.subject?.substring(0, 50),
       from: emailData.from,
+      to: emailData.to,
+      cc: emailData.cc,
       hasBody: !!emailData.body
     });
 
-    // Extract email content
+    // Extract email content and recipients
     const subject = emailData.subject || 'No subject';
     const from = emailData.from || 'Unknown';
-    const body = emailData.body || emailData.bodyPreview || '';
+    const to = emailData.to || [];
+    const cc = emailData.cc || [];
+    const received = emailData.date || emailData.receivedDateTime || '';
+
+    // Get body - prefer plain text, fallback to HTML stripped of tags
+    let body = emailData.body || emailData.bodyPreview || '';
+
+    // Strip HTML tags for AI analysis
+    const bodyForAI = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
     // Generate AI analysis
     console.log('🤖 Generating AI analysis...');
@@ -107,7 +117,7 @@ Email:
 From: ${from}
 Subject: ${subject}
 
-${body}
+${bodyForAI}
 
 Provide ONLY the comprehensive summary in plain text. Be concise but thorough. Focus on what John needs to know and do.`;
 
@@ -147,6 +157,9 @@ Provide ONLY the comprehensive summary in plain text. Be concise but thorough. F
         email_id: email_id,
         subject: subject,
         from: from,
+        to: to,
+        cc: cc,
+        received: received,
         body: body,
         comprehensive_summary: comprehensive_summary
       });
@@ -159,6 +172,9 @@ Provide ONLY the comprehensive summary in plain text. Be concise but thorough. F
         email_id: email_id,
         subject: subject,
         from: from,
+        to: to,
+        cc: cc,
+        received: received,
         body: body,
         comprehensive_summary: 'AI analysis unavailable - please review the email body below.'
       });
