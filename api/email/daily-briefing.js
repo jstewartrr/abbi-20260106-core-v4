@@ -507,20 +507,9 @@ export default async function handler(req, res) {
         // Sanitize text to prevent JSON parsing issues
         const sanitize = (text) => text ? text.replace(/[\r\n\t]/g, ' ').replace(/"/g, "'").substring(0, 200) : '';
 
-        // Extract from field - handle both object and string formats
-        let from_name = 'Unknown';
-        let from_email = 'unknown';
-        if (email.from) {
-          if (typeof email.from === 'string') {
-            from_name = email.from;
-            from_email = email.from;
-          } else if (email.from.emailAddress) {
-            from_name = email.from.emailAddress.name || email.from.emailAddress.address;
-            from_email = email.from.emailAddress.address;
-          }
-        }
-        from_name = sanitize(from_name);
-        from_email = sanitize(from_email);
+        // Extract from field - M365 MCP returns from_name and from as separate fields
+        const from_name = sanitize(email.from_name || email.from || 'Unknown');
+        const from_email = sanitize(email.from || 'unknown');
         const subject = sanitize(email.subject || 'No subject');
         const preview = sanitize(email.preview || email.bodyPreview || email.snippet || 'No preview');
         const receivedDate = email.date || email.receivedDateTime;
@@ -646,24 +635,9 @@ Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no e
             }
           }
 
-          // Extract from field - handle both object and string formats
-          let fromName = 'Unknown';
-          let fromEmail = 'unknown';
-
-          // DEBUG: Log the actual structure
-          console.log(`🔍 DEBUG email.from structure for ${email.subject?.substring(0, 30)}:`, JSON.stringify(email.from));
-
-          if (email.from) {
-            if (typeof email.from === 'string') {
-              fromName = email.from;
-              fromEmail = email.from;
-            } else if (email.from.emailAddress) {
-              fromName = email.from.emailAddress.name || email.from.emailAddress.address;
-              fromEmail = email.from.emailAddress.address;
-            }
-          }
-
-          console.log(`📧 Extracted: fromName="${fromName}", fromEmail="${fromEmail}"`);
+          // Extract from field - M365 MCP returns from_name and from as separate fields
+          const fromName = email.from_name || email.from || 'Unknown';
+          const fromEmail = email.from || 'unknown';
 
           briefingEmails.push({
             id: result.id,

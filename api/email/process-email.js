@@ -89,11 +89,31 @@ export default async function handler(req, res) {
       hasBody: !!emailData.body
     });
 
-    // Extract email content and recipients
+    // Extract email content and recipients - handle M365 Graph API structure
     const subject = emailData.subject || 'No subject';
-    const from = emailData.from || 'Unknown';
-    const to = emailData.to || [];
-    const cc = emailData.cc || [];
+
+    // Extract from (can be object or string)
+    let from = 'Unknown';
+    if (emailData.from) {
+      if (typeof emailData.from === 'string') {
+        from = emailData.from;
+      } else if (emailData.from.name) {
+        from = emailData.from.name;
+      } else if (emailData.from.address) {
+        from = emailData.from.address;
+      }
+    }
+
+    // Extract to recipients
+    const to = Array.isArray(emailData.to)
+      ? emailData.to.map(r => r.name || r.address || r).filter(Boolean)
+      : [];
+
+    // Extract cc recipients
+    const cc = Array.isArray(emailData.cc)
+      ? emailData.cc.map(r => r.name || r.address || r).filter(Boolean)
+      : [];
+
     const received = emailData.date || emailData.receivedDateTime || '';
 
     // Get body - prefer plain text, fallback to HTML stripped of tags
