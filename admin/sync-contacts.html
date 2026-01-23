@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Sync - ABBI Admin</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg2: #12121a;
+            --card: #1a1a25;
+            --border: #2a2a3a;
+            --purple: #8b5cf6;
+            --text: #f1f5f9;
+            --text2: #94a3b8;
+            --green: #22c55e;
+            --red: #ef4444;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, var(--purple), #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--text2);
+            margin-bottom: 32px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            color: var(--purple);
+        }
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        .btn {
+            background: var(--purple);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 16px;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--green);
+            color: var(--green);
+        }
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--red);
+            color: var(--red);
+        }
+        .example {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--text2);
+            overflow-x: auto;
+        }
+        .note {
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 4px solid var(--purple);
+            padding: 12px;
+            margin: 16px 0;
+            border-radius: 4px;
+            color: var(--text2);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📇 Contact Sync to Hive Mind</h1>
+        <p class="subtitle">Sync contacts so ABBI can search for employees, CEOs, CFOs, investors, and banks</p>
+
+        <div class="card">
+            <h2>Paste Contact Data (JSON Format)</h2>
+            <p style="color: var(--text2); margin-bottom: 16px;">
+                Enter contacts in JSON format. Each contact should have: name, email, role, company, type, and optional reference_name (nickname).
+            </p>
+
+            <div class="note">
+                <strong>💡 Tip:</strong> Export your contacts from the MP.88.02 and MP.88.03 files or paste them here manually.
+                ABBI will store them in Hive Mind and can search them when you ask "What's John's email?" or "How do I reach the CEO of [company]?"
+            </div>
+
+            <textarea id="contactData" placeholder='[
+  {
+    "name": "Scot Duncan",
+    "email": "sduncan@middleground.com",
+    "role": "Founding Partner and COO",
+    "company": "MiddleGround Capital",
+    "type": "employee",
+    "reference_name": "Scot",
+    "phone": "646-573-5883"
+  },
+  {
+    "name": "Jane Smith",
+    "email": "jsmith@portfoliocompany.com",
+    "role": "CEO",
+    "company": "Portfolio Company Inc",
+    "type": "ceo",
+    "reference_name": "Jane"
+  }
+]'></textarea>
+
+            <button class="btn" onclick="syncContacts()">🔄 Sync to Hive Mind</button>
+
+            <div id="status" class="status"></div>
+
+            <div class="example">
+<strong>Contact Types:</strong>
+- "employee" - MiddleGround team members
+- "ceo" - Portfolio company CEOs
+- "cfo" - Portfolio company CFOs
+- "investor" - Investors and LPs
+- "bank" - Investment banks and lenders
+- "general" - Other contacts</div>
+        </div>
+
+        <div class="card">
+            <h2>Current Status</h2>
+            <p style="color: var(--text2);">
+                After syncing, ABBI can answer questions like:
+            </p>
+            <ul style="margin: 16px 0; padding-left: 24px; color: var(--text2); line-height: 1.8;">
+                <li>"What's Scot's email?"</li>
+                <li>"How do I reach the CEO of [company]?"</li>
+                <li>"Give me the CFO's contact info"</li>
+                <li>"Who's the banker for this deal?"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function syncContacts() {
+            const statusDiv = document.getElementById('status');
+            const btn = document.querySelector('.btn');
+            const textarea = document.getElementById('contactData');
+
+            // Parse JSON
+            let contacts;
+            try {
+                contacts = JSON.parse(textarea.value);
+                if (!Array.isArray(contacts)) {
+                    throw new Error('Contacts must be an array');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Invalid JSON format: ' + error.message;
+                statusDiv.style.display = 'block';
+                return;
+            }
+
+            // Validate contacts
+            for (const contact of contacts) {
+                if (!contact.name || !contact.email) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ Each contact must have at least name and email fields';
+                    statusDiv.style.display = 'block';
+                    return;
+                }
+            }
+
+            // Send to API
+            btn.disabled = true;
+            btn.textContent = '⏳ Syncing...';
+            statusDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/contacts/sync-to-hive-mind', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contacts })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = `✅ ${data.message} (${data.synced} synced, ${data.failed} failed)`;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ ' + data.error;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Network error: ' + error.message;
+            } finally {
+                statusDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🔄 Sync to Hive Mind';
+            }
+        }
+    </script>
+</body>
+</html>

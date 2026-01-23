@@ -1,5 +1,68 @@
 // ABBI Chat Q&A - Answer questions about emails with full context
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+
+async function snowflakeCall(query, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(SNOWFLAKE_GATEWAY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: { name: 'sm_query_snowflake', arguments: { sql: query } },
+        id: Date.now()
+      }),
+      signal: controller.signal
+    });
+
+    if (!res.ok) throw new Error(`Snowflake HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+    const content = data.result?.content?.[0];
+    if (content?.type === 'text') {
+      const parsed = JSON.parse(content.text);
+      if (parsed.success && parsed.data) {
+        return parsed.data;
+      }
+      if (parsed.success) {
+        return [];
+      }
+      throw new Error(parsed.error || 'Unknown Snowflake error');
+    }
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function searchContacts(query) {
+  // Search Hive Mind for contacts matching the query
+  const searchQuery = `
+    SELECT
+      SUMMARY,
+      DETAILS,
+      TIMESTAMP
+    FROM SOVEREIGN_MIND.RAW.HIVE_MIND
+    WHERE CATEGORY = 'Contact'
+      AND SOURCE = 'ABBI Contact Sync'
+      AND (
+        LOWER(SUMMARY) LIKE LOWER('%${query.replace(/'/g, "''")}%')
+        OR LOWER(DETAILS:name::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
+        OR LOWER(DETAILS:email::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
+        OR LOWER(DETAILS:company::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
+        OR LOWER(DETAILS:reference_name::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
+      )
+    ORDER BY TIMESTAMP DESC
+    LIMIT 10
+  `;
+
+  return await snowflakeCall(searchQuery);
+}
 
 async function mcpCall(tool, args = {}, timeoutMs = 15000) {
   const actualToolName = tool.startsWith('m365_') ? tool.substring(5) : tool;
@@ -64,9 +127,87 @@ export default async function handler(req, res) {
       });
     }
 
+    // Check if question is about finding a contact
+    const contactKeywords = ['email', 'contact', 'reach', 'address', 'phone', 'ceo', 'cfo', 'find', 'who is', 'how do i contact'];
+    const isContactQuery = contactKeywords.some(keyword => question.toLowerCase().includes(keyword));
+
+    let contactResults = [];
+    if (isContactQuery) {
+      console.log('📇 Detected contact query - searching Hive Mind...');
+      try {
+        // Extract potential names from question
+        const words = question.split(' ');
+        for (const word of words) {
+          if (word.length > 2 && word[0] === word[0].toUpperCase()) {
+            const results = await searchContacts(word);
+            contactResults.push(...results);
+          }
+        }
+        // Remove duplicates
+        contactResults = contactResults.filter((contact, index, self) =>
+          index === self.findIndex((c) => c.SUMMARY === contact.SUMMARY)
+        );
+        console.log(`📇 Found ${contactResults.length} contacts in Hive Mind`);
+
+        // If no results in Hive Mind, search emails as fallback
+        if (contactResults.length === 0 && user) {
+          console.log('📧 No contacts in Hive Mind - searching emails...');
+          try {
+            // Extract search query (name or company)
+            const searchTerms = words.filter(w => w.length > 2 && w[0] === w[0].toUpperCase()).join(' ');
+            if (searchTerms) {
+              const emailResults = await mcpCall('m365_search_emails', {
+                query: searchTerms,
+                user: user,
+                top: 5
+              }, 20000);
+
+              if (emailResults.emails && emailResults.emails.length > 0) {
+                console.log(`📧 Found ${emailResults.emails.length} emails from/to this person`);
+                // Extract unique email addresses and names
+                const uniqueContacts = new Map();
+                emailResults.emails.forEach(email => {
+                  if (email.from && email.from.toLowerCase().includes(searchTerms.toLowerCase())) {
+                    const key = email.from.toLowerCase();
+                    if (!uniqueContacts.has(key)) {
+                      uniqueContacts.set(key, {
+                        SUMMARY: `${email.from_name || email.from} (found in emails)`,
+                        DETAILS: { name: email.from_name || email.from, email: email.from, source: 'email_search' }
+                      });
+                    }
+                  }
+                });
+                contactResults = Array.from(uniqueContacts.values());
+              }
+            }
+          } catch (emailSearchError) {
+            console.warn('Email contact search failed:', emailSearchError.message);
+          }
+        }
+      } catch (searchError) {
+        console.warn('Contact search failed:', searchError.message);
+      }
+    }
+
     // Build context for AI
     let emailData = null;
     let contextText = '';
+
+    // Add contact information to context if found
+    if (contactResults.length > 0) {
+      contextText += 'Contact Information from Database:\n';
+      contactResults.forEach(contact => {
+        const details = contact.DETAILS;
+        contextText += `- ${details.name || 'Unknown'}`;
+        if (details.email) contextText += ` (${details.email})`;
+        if (details.role) contextText += ` - ${details.role}`;
+        if (details.company) contextText += ` at ${details.company}`;
+        if (details.reference_name) contextText += ` [also known as: ${details.reference_name}]`;
+        if (details.phone) contextText += ` | Phone: ${details.phone}`;
+        contextText += '\n';
+      });
+      contextText += '\n';
+    }
 
     // If we have email context from the frontend, use it
     if (email_context) {
@@ -171,17 +312,24 @@ User Question: ${question}`;
 
 You help John understand his emails, answer questions, and provide insights. Be concise, professional, and action-oriented.
 
+You have access to:
+- John's contact database (employees, portfolio company CEOs/CFOs, investors, investment banks)
+- Email context and analysis
+- Calendar and meeting information
+
 When answering questions:
 - Reference specific details from the email context when available
+- When asked about contacts, use the contact information provided in the context
 - Highlight important people, companies, dates, or action items
-- Provide clear, direct answers
+- Provide clear, direct answers with contact details when relevant
 - Suggest next steps when appropriate
 
 Formatting guidelines:
 - Use bullet points (-) for lists of actions or key points
 - Use **bold** for emphasis on important names, companies, or deadlines
 - Keep responses well-structured and easy to scan
-- When listing action items, use numbered lists (1., 2., 3.)`,
+- When listing action items, use numbered lists (1., 2., 3.)
+- Format contact info clearly: Name (email) - Role at Company`,
           messages: conversationHistory
         }),
         signal: aiController.signal
