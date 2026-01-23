@@ -363,9 +363,9 @@
                         </div>
 
                         <!-- Chat Input -->
-                        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--bg);display:flex;gap:10px">
-                            <input type="text" id="abbiChatInput" placeholder="Ask ABBI anything about the content above..." style="flex:1;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.9rem" onkeypress="if(event.key==='Enter') sendAbbiMessage()">
-                            <button onclick="sendAbbiMessage()" style="padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500;font-size:.9rem">Send</button>
+                        <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--bg);display:flex;gap:10px;align-items:flex-end">
+                            <textarea id="abbiChatInput" placeholder="Ask ABBI anything about the content above..." style="flex:1;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.9rem;resize:vertical;min-height:44px;max-height:200px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;line-height:1.4" onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendAbbiMessage(); }" rows="1"></textarea>
+                            <button onclick="sendAbbiMessage()" style="padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500;font-size:.9rem;flex-shrink:0">Send</button>
                         </div>
                     </div>
                 </div>
@@ -3572,8 +3572,9 @@
 
             if (!message) return;
 
-            // Clear input
+            // Clear input and reset height
             input.value = '';
+            input.style.height = '44px';
 
             // Add user message to chat
             addAbbiChatMessage('user', message);
@@ -3771,6 +3772,16 @@
         checkAuth();
         restoreCollapseStates();
         loadContactSyncTime(); // Load contact sync timestamp
+
+        // Auto-grow textarea as user types
+        const chatInput = document.getElementById('abbiChatInput');
+        if (chatInput) {
+            chatInput.addEventListener('input', function() {
+                this.style.height = '44px'; // Reset to min height
+                const newHeight = Math.min(this.scrollHeight, 200); // Max 200px
+                this.style.height = newHeight + 'px';
+            });
+        }
     </script>
 </body>
 </html>
