@@ -1,5 +1,29 @@
 // ABBI Chat Q&A - Clean rebuild v8.92
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+
+// MCP tool call helper
+async function mcpCall(tool, args = {}) {
+  const actualToolName = tool.startsWith('m365_') ? tool.substring(5) : tool;
+
+  const res = await fetch(M365_GATEWAY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: actualToolName, arguments: args },
+      id: Date.now()
+    })
+  });
+
+  if (!res.ok) throw new Error(`MCP call failed: ${res.status}`);
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || 'MCP error');
+
+  return data.result?.content?.[0]?.text || JSON.stringify(data.result);
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -59,7 +83,39 @@ User Question: ${question}`;
 
     console.log(`💬 Sending ${messages.length} messages to Claude (including history)`);
 
-    // Call Claude API directly
+    // Define M365 tools for ABBI
+    const tools = [
+      {
+        name: 'm365_send_email',
+        description: 'Send an email from John Stewart\'s account (jstewart@middleground.com)',
+        input_schema: {
+          type: 'object',
+          properties: {
+            to: { type: 'array', items: { type: 'string' }, description: 'Recipient email addresses' },
+            subject: { type: 'string', description: 'Email subject' },
+            body: { type: 'string', description: 'Email body (HTML or plain text)' },
+            cc: { type: 'array', items: { type: 'string' }, description: 'CC recipients (optional)' },
+            importance: { type: 'string', enum: ['low', 'normal', 'high'], description: 'Email importance (optional)' }
+          },
+          required: ['to', 'subject', 'body']
+        }
+      },
+      {
+        name: 'm365_reply_email',
+        description: 'Reply to an email',
+        input_schema: {
+          type: 'object',
+          properties: {
+            message_id: { type: 'string', description: 'ID of the email to reply to' },
+            body: { type: 'string', description: 'Reply body text' },
+            reply_all: { type: 'boolean', description: 'Reply to all recipients (default: false)' }
+          },
+          required: ['message_id', 'body']
+        }
+      }
+    ];
+
+    // Call Claude API with tools
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -71,7 +127,8 @@ User Question: ${question}`;
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         messages: messages,
-        system: 'You are ABBI, John Stewart\'s AI assistant for email management at Middleground Capital. Analyze emails and provide clear, actionable guidance. Format responses with:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe concise and professional.'
+        tools: tools,
+        system: 'You are ABBI, John Stewart\'s AI executive assistant at Middleground Capital.\n\nCAPABILITIES:\n- Analyze emails and provide recommendations\n- Draft email responses\n- SEND emails directly using M365 tools (m365_send_email, m365_reply_email)\n- Answer questions about emails and provide context\n- Remember previous conversation history\n\nWHEN USER ASKS TO SEND/REPLY:\n- Draft the email content FIRST\n- Show the draft to John\n- Ask for confirmation before sending\n- Use the appropriate tool to send after confirmation\n- Report success/failure clearly\n\nRESPONSE FORMAT:\nFor email analysis:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe direct, concise, and professional.'
       })
     });
 
@@ -81,7 +138,61 @@ User Question: ${question}`;
     }
 
     const data = await response.json();
-    const answer = data.content[0].text;
+
+    // Check if Claude wants to use a tool
+    if (data.stop_reason === 'tool_use') {
+      const toolUse = data.content.find(block => block.type === 'tool_use');
+
+      if (toolUse) {
+        console.log(`🔧 Tool use: ${toolUse.name}`);
+
+        // Execute the tool
+        const toolResult = await mcpCall(toolUse.name, toolUse.input);
+
+        // Send tool result back to Claude
+        messages.push({
+          role: 'assistant',
+          content: data.content
+        });
+
+        messages.push({
+          role: 'user',
+          content: [{
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: toolResult
+          }]
+        });
+
+        // Get final response from Claude
+        const response2 = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 2000,
+            messages: messages,
+            tools: tools,
+            system: 'You are ABBI, John Stewart\'s AI executive assistant at Middleground Capital.\n\nCAPABILITIES:\n- Analyze emails and provide recommendations\n- Draft email responses\n- SEND emails directly using M365 tools (m365_send_email, m365_reply_email)\n- Answer questions about emails and provide context\n- Remember previous conversation history\n\nWHEN USER ASKS TO SEND/REPLY:\n- Draft the email content FIRST\n- Show the draft to John\n- Ask for confirmation before sending\n- Use the appropriate tool to send after confirmation\n- Report success/failure clearly\n\nRESPONSE FORMAT:\nFor email analysis:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe direct, concise, and professional.'
+          })
+        });
+
+        const data2 = await response2.json();
+        const answer = data2.content.find(block => block.type === 'text')?.text || 'Tool executed successfully';
+
+        return res.json({
+          success: true,
+          answer: answer
+        });
+      }
+    }
+
+    // No tool use - return text response
+    const answer = data.content.find(block => block.type === 'text')?.text || data.content[0].text;
 
     return res.json({
       success: true,
