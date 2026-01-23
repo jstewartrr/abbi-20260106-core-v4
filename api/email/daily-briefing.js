@@ -258,9 +258,24 @@ export default async function handler(req, res) {
 
     // Handle jstewart@middleground.com Focused inbox filtering
     // Mark and delete non-Focused emails from jstewart inbox
+
+    // Debug: Check what jstewart inbox emails look like
+    const jstewartEmails = allEmails.filter(e => e._sourceMailbox === 'jstewart@middleground.com');
+    if (jstewartEmails.length > 0) {
+      console.log(`\n🔍 DEBUG: Found ${jstewartEmails.length} jstewart emails`);
+      const sample = jstewartEmails[0];
+      console.log(`  Sample email fields:`, {
+        folder: sample.folder,
+        parentFolderId: sample.parentFolderId,
+        inferenceClassification: sample.inferenceClassification,
+        categories: sample.categories,
+        subject: sample.subject?.substring(0, 50)
+      });
+    }
+
     const jstewartInboxEmails = allEmails.filter(e =>
       e._sourceMailbox === 'jstewart@middleground.com' &&
-      (e.folder === 'inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
+      (e.folder === 'inbox' || e.folder === 'Inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
     );
 
     if (jstewartInboxEmails.length > 0) {
