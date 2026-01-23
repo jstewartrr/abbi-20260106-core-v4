@@ -135,13 +135,14 @@ User Question: ${question}`;
       },
       {
         name: 'm365_reply_email',
-        description: 'Reply to an email. Use reply_all to include all original recipients.',
+        description: 'Reply to an email. Can add CC recipients to loop in additional people. Use reply_all to include all original recipients.',
         input_schema: {
           type: 'object',
           properties: {
             message_id: { type: 'string', description: 'ID of the email to reply to (from EMAIL CONTEXT)' },
             body: { type: 'string', description: 'Reply body text' },
-            reply_all: { type: 'boolean', description: 'Reply to all recipients (default: false)' }
+            cc: { type: 'array', items: { type: 'string' }, description: 'CC recipients to add (email addresses, optional)' },
+            reply_all: { type: 'boolean', description: 'Reply to all original recipients (default: false, optional)' }
           },
           required: ['message_id', 'body']
         }
@@ -289,7 +290,7 @@ Additional context available:
 
 EMAIL MANAGEMENT:
 - m365_send_email: Send new email (to, cc, subject, body)
-- m365_reply_email: Reply to email (message_id, body, reply_all)
+- m365_reply_email: Reply to email AND add CC recipients (message_id, body, cc, reply_all)
 - m365_forward_email: Forward email to new people (message_id, to, comment)
 
 CALENDAR MANAGEMENT:
@@ -320,10 +321,12 @@ John's Constants:
 2. DO NOT use tools unless John explicitly says to execute
 
 **For "Reply and Add People"**:
-Use m365_forward_email to loop additional people into the thread with a comment.
+Use the cc parameter in m365_reply_email to add people as CC recipients.
 
 Examples:
 - "Reply saying I'll follow up tomorrow" → Draft reply, call m365_reply_email, report success
+- "Reply and CC Sarah and Mark" → Call m365_reply_email with cc: ['sarah@example.com', 'mark@example.com']
+- "Reply all and add john@example.com as CC" → Call m365_reply_email with reply_all: true, cc: ['john@example.com']
 - "Forward this to Sarah and Mark" → Call m365_forward_email with their emails
 - "Create a task for this" → Call asana_create_task with appropriate project
 - "Schedule a meeting with CFO next Tuesday 2pm" → Call m365_create_event
