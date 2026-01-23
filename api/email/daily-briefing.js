@@ -245,9 +245,9 @@ export default async function handler(req, res) {
         'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQADk89uuwAAAA==', // 01.08 Dave Eubank
         'AAMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAAAAAAgk0VHyOvbRaPMAcLLlPQLAQBtqPK5EteySrpFMqSnAflJAAQEga-MAAA=', // 01.09 Ryan
         'AAMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAAAAAAgk0VHyOvbRaPMAcLLlPQLAQBtqPK5EteySrpFMqSnAflJAACz3MI2AAA=', // 01.10 Executive Travel
-        'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQADk89uuwAAAA==', // 01.11 MP Office
-        'AAMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAAAAAAgk0VHyOvbRaPMAcLLlPQLAQBtqPK5EteySrpFMqSnAflJAAQEga-MAAA=', // 01.12 COO Office
-        'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQADk89usQAAAA==', // 01.13 MC
+        'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQABs6hIqQAAAA==', // 01.11 MP Office (FIXED)
+        'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQABrR2AKAAAAA==', // 01.12 COO Office (FIXED)
+        'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQABrR2AKQAAAA==', // 01.13 MC (FIXED)
         'AQMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAADIJNFR8jr20WjzAHCy5T0CwEAbajyuRLXskq6RTKkpwH5SQAEYWJ_ogAAAA==', // 01.19 Exit and capital markets
         'AAMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAAAAAAgk0VHyOvbRaPMAcLLlPQLAQBtqPK5EteySrpFMqSnAflJAADFvIyOAAA=', // 01.20 IR
         'AAMkADAyZGM5YmQ4LTI1YTctNDg5Ny1hY2ZhLTVmNDJhNmY0NWQ2MAAuAAAAAAAgk0VHyOvbRaPMAcLLlPQLAQBtqPK5EteySrpFMqSnAflJAADFvIyNAAA=', // 01.21 BD
@@ -326,6 +326,55 @@ export default async function handler(req, res) {
 
     const rawFetchCount = allEmails.length;
     console.log(`\n📧 RAW TOTAL fetched from M365 (before any filtering): ${rawFetchCount} emails`);
+
+    // Handle jstewart@middleground.com Focused inbox filtering
+    // Mark and delete non-Focused emails from jstewart inbox
+    const jstewartInboxEmails = allEmails.filter(e =>
+      e._sourceMailbox === 'jstewart@middleground.com' &&
+      (e.folder === 'inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
+    );
+
+    if (jstewartInboxEmails.length > 0) {
+      console.log(`\n📬 Processing ${jstewartInboxEmails.length} jstewart inbox emails for Focused filtering...`);
+
+      const otherEmails = jstewartInboxEmails.filter(e => {
+        // M365 uses inferenceClassification: "focused" or "other"
+        const classification = e.inferenceClassification?.toLowerCase();
+        return classification === 'other' || (!classification && !e.categories?.includes('Focused'));
+      });
+
+      if (otherEmails.length > 0) {
+        console.log(`🗑️  Found ${otherEmails.length} non-Focused emails in jstewart inbox - marking as read and deleting...`);
+
+        const emailIdsToDelete = otherEmails.map(e => e.id);
+
+        try {
+          // Mark as read first
+          await mcpCall('m365_mark_read', {
+            message_ids: emailIdsToDelete,
+            user: 'jstewart@middleground.com',
+            is_read: true
+          }, 20000);
+          console.log(`✓ Marked ${emailIdsToDelete.length} emails as read`);
+
+          // Delete (move to deleted items)
+          await mcpCall('m365_delete_email', {
+            message_ids: emailIdsToDelete,
+            user: 'jstewart@middleground.com',
+            permanent: false  // Move to deleted items, not permanent delete
+          }, 20000);
+          console.log(`✓ Deleted ${emailIdsToDelete.length} non-Focused emails from jstewart inbox`);
+
+          // Remove from processing list
+          allEmails = allEmails.filter(e => !emailIdsToDelete.includes(e.id));
+          console.log(`✓ Removed ${emailIdsToDelete.length} emails from processing list`);
+        } catch (error) {
+          console.error(`❌ Failed to mark/delete non-Focused emails:`, error.message);
+        }
+      } else {
+        console.log(`✓ All ${jstewartInboxEmails.length} jstewart inbox emails are Focused`);
+      }
+    }
 
     console.log(`\n📧 TOTAL fetched from all folders BEFORE date filter: ${allEmails.length}`);
     let sampleEmail = null;
