@@ -175,7 +175,13 @@ When answering questions:
 - Reference specific details from the email context when available
 - Highlight important people, companies, dates, or action items
 - Provide clear, direct answers
-- Suggest next steps when appropriate`,
+- Suggest next steps when appropriate
+
+Formatting guidelines:
+- Use bullet points (-) for lists of actions or key points
+- Use **bold** for emphasis on important names, companies, or deadlines
+- Keep responses well-structured and easy to scan
+- When listing action items, use numbered lists (1., 2., 3.)`,
           messages: conversationHistory
         }),
         signal: aiController.signal
