@@ -3106,15 +3106,41 @@
 
                         // Email metadata (From, To, CC, Date)
                         html += '<div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:16px;font-size:.8rem;line-height:1.6">';
-                        html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">From:</span> <span style="color:var(--text2)">' + escapeHtml(analysis.from || email.from || 'Unknown') + '</span></div>';
 
+                        // Extract From (handle object or string)
+                        let fromDisplay = 'Unknown';
+                        if (analysis.from) {
+                            if (typeof analysis.from === 'string') {
+                                fromDisplay = analysis.from;
+                            } else if (analysis.from.emailAddress) {
+                                fromDisplay = analysis.from.emailAddress.name || analysis.from.emailAddress.address;
+                            }
+                        } else if (email.from) {
+                            fromDisplay = email.from;
+                        }
+                        html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">From:</span> <span style="color:var(--text2)">' + escapeHtml(fromDisplay) + '</span></div>';
+
+                        // Extract To (handle array of objects or strings)
                         if (analysis.to && analysis.to.length > 0) {
-                            const toList = Array.isArray(analysis.to) ? analysis.to.join(', ') : analysis.to;
+                            const toList = Array.isArray(analysis.to)
+                                ? analysis.to.map(r => {
+                                    if (typeof r === 'string') return r;
+                                    if (r.emailAddress) return r.emailAddress.name || r.emailAddress.address;
+                                    return 'Unknown';
+                                  }).join(', ')
+                                : (typeof analysis.to === 'string' ? analysis.to : analysis.to.emailAddress?.name || analysis.to.emailAddress?.address || 'Unknown');
                             html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">To:</span> <span style="color:var(--text2)">' + escapeHtml(toList) + '</span></div>';
                         }
 
+                        // Extract CC (handle array of objects or strings)
                         if (analysis.cc && analysis.cc.length > 0) {
-                            const ccList = Array.isArray(analysis.cc) ? analysis.cc.join(', ') : analysis.cc;
+                            const ccList = Array.isArray(analysis.cc)
+                                ? analysis.cc.map(r => {
+                                    if (typeof r === 'string') return r;
+                                    if (r.emailAddress) return r.emailAddress.name || r.emailAddress.address;
+                                    return 'Unknown';
+                                  }).join(', ')
+                                : (typeof analysis.cc === 'string' ? analysis.cc : analysis.cc.emailAddress?.name || analysis.cc.emailAddress?.address || 'Unknown');
                             html += '<div style="margin-bottom:4px"><span style="color:var(--text3);font-weight:600">CC:</span> <span style="color:var(--text2)">' + escapeHtml(ccList) + '</span></div>';
                         }
 

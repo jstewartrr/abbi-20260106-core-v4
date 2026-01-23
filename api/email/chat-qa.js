@@ -254,9 +254,15 @@ export default async function handler(req, res) {
       contextText = `Email Context:
 From: ${email_context.from || 'Unknown'}
 Subject: ${email_context.subject || 'No subject'}
-Summary: ${email_context.comprehensive_summary || 'No summary available'}
+Summary: ${email_context.comprehensive_summary || 'No summary available'}`;
 
-${email_context.body ? 'Full Email Body:\n' + email_context.body.substring(0, 2000) : ''}`;
+      // Add attachment information if available
+      if (email_context.hasAttachments || (email_context.attachments && email_context.attachments.length > 0)) {
+        const attachments = email_context.attachments || [];
+        contextText += `\nAttachments: ${attachments.length > 0 ? attachments.map(a => a.name || a.filename || 'unnamed').join(', ') : 'Yes (count unknown)'}`;
+      }
+
+      contextText += `\n\n${email_context.body ? 'Full Email Body:\n' + email_context.body.substring(0, 2000) : ''}`;
     }
     // Otherwise, fetch the email if message_id is provided
     else if (message_id && user) {
@@ -276,9 +282,15 @@ ${email_context.body ? 'Full Email Body:\n' + email_context.body.substring(0, 20
 
           contextText = `Email Context:
 From: ${emailData.from || 'Unknown'}
-Subject: ${emailData.subject || 'No subject'}
+Subject: ${emailData.subject || 'No subject'}`;
 
-Email Body:
+          // Add attachment information if available
+          if (emailData.hasAttachments || (emailData.attachments && emailData.attachments.length > 0)) {
+            const attachments = emailData.attachments || [];
+            contextText += `\nAttachments: ${attachments.length > 0 ? attachments.map(a => a.name || a.filename || 'unnamed').join(', ') : 'Yes (metadata not detailed)'}`;
+          }
+
+          contextText += `\n\nEmail Body:
 ${bodyText}`;
         }
       } catch (emailError) {
@@ -352,24 +364,30 @@ User Question: ${question}`;
 
 You help John understand his emails, answer questions, and provide insights. Be concise, professional, and action-oriented.
 
-You have access to:
-- John's contact database (employees, portfolio company CEOs/CFOs, investors, investment banks)
-- Email context and analysis
-- Calendar and meeting information
+**Your Current Capabilities:**
+You have FULL access to:
+- John's Microsoft 365 email account - you can read all emails, including full content, sender/recipients, and metadata
+- John's comprehensive contact database (2,000+ contacts: employees, portfolio CEOs/CFOs, investors, investment banks)
+- Calendar and meeting information via M365 integration
+- Real-time email search and analysis
 
-When answering questions:
-- Reference specific details from the email context when available
-- When asked about contacts, use the contact information provided in the context
-- Highlight important people, companies, dates, or action items
-- Provide clear, direct answers with contact details when relevant
-- Suggest next steps when appropriate
+**Current Limitations:**
+- Email attachments: You can see that attachments exist and their names, but cannot currently read the contents of PDFs, Word docs, or Excel files. If asked about attachment contents, politely explain this limitation and offer to help with the email text instead.
+- File downloads: You cannot download files directly, but you can see attachment metadata
 
-Formatting guidelines:
+**How to Answer Questions:**
+1. **Email questions**: Reference specific details from the email context provided (sender, recipients, subject, body text)
+2. **Contact questions**: Search the contact database and provide complete contact details (name, email, phone, company, role)
+3. **People questions**: Use context to identify key people and provide relevant contact information
+4. **Document questions**: If asked about attachment contents, explain the limitation but offer to help with email body analysis
+5. **Action items**: Identify next steps, deadlines, and important follow-ups from email content
+
+**Formatting Guidelines:**
 - Use bullet points (-) for lists of actions or key points
 - Use **bold** for emphasis on important names, companies, or deadlines
 - Keep responses well-structured and easy to scan
 - When listing action items, use numbered lists (1., 2., 3.)
-- Format contact info clearly: Name (email) - Role at Company`,
+- Format contact info clearly: **Name** (email@domain.com) - Role at Company | Phone: xxx-xxx-xxxx`,
           messages: conversationHistory
         }),
         signal: aiController.signal
