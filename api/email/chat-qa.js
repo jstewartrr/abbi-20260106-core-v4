@@ -40,44 +40,13 @@ async function snowflakeCall(query, timeoutMs = 15000) {
   }
 }
 
-async function getRecentConversationHistory(days = 7) {
-  // Retrieve conversation history from last N days from Hive Mind
-  try {
-    const historyQuery = `
-      SELECT
-        SUMMARY,
-        DETAILS,
-        CREATED_AT
-      FROM SOVEREIGN_MIND.RAW.HIVE_MIND
-      WHERE SOURCE = 'ABBI Chat'
-      AND CATEGORY = 'Conversation'
-      AND CREATED_AT >= DATEADD(day, -${days}, CURRENT_TIMESTAMP())
-      ORDER BY CREATED_AT ASC
-    `;
-
-    const results = await snowflakeCall(historyQuery);
-    console.log(`📚 Retrieved ${results.length} conversation history records from last ${days} days`);
-    return results;
-  } catch (error) {
-    console.error('Error retrieving conversation history:', error);
-    return [];
-  }
-}
-
-async function storeConversationInHiveMind(userMessage, abbiResponse, emailId = null, emailSubject = null) {
-  // TEMPORARILY DISABLED - SQL string escaping causing "pattern mismatch" errors
-  // TODO: Re-enable with proper parameterized queries or base64 encoding
-  console.log('⚠️ Conversation storage temporarily disabled');
-  return;
-}
-
 async function searchContacts(query) {
   // Search Hive Mind for contacts matching the query
   const searchQuery = `
     SELECT
       SUMMARY,
       DETAILS,
-      CREATED_AT
+      TIMESTAMP
     FROM SOVEREIGN_MIND.RAW.HIVE_MIND
     WHERE CATEGORY = 'Contact'
       AND SOURCE = 'ABBI Contact Sync'
@@ -88,7 +57,7 @@ async function searchContacts(query) {
         OR LOWER(DETAILS:company::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
         OR LOWER(DETAILS:reference_name::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
       )
-    ORDER BY CREATED_AT DESC
+    ORDER BY TIMESTAMP DESC
     LIMIT 10
   `;
 
@@ -198,10 +167,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Retrieve conversation history from last 7 days
-    console.log('📚 Retrieving conversation history from Hive Mind...');
-    const hiveMindHistory = await getRecentConversationHistory(7);
-
     // Check if question is about finding a contact
     const contactKeywords = ['email', 'contact', 'reach', 'address', 'phone', 'ceo', 'cfo', 'find', 'who is', 'how do i contact'];
     const isContactQuery = contactKeywords.some(keyword => question.toLowerCase().includes(keyword));
@@ -267,40 +232,6 @@ export default async function handler(req, res) {
     // Build context for AI
     let emailData = null;
     let contextText = '';
-
-    // Add conversation history from Hive Mind
-    if (hiveMindHistory.length > 0) {
-      contextText += '=== RECENT CONVERSATION HISTORY (Last 7 Days) ===\n';
-      contextText += 'Previous discussions about emails to help you track responses and avoid duplicates:\n\n';
-
-      hiveMindHistory.forEach((conv, idx) => {
-        const details = conv.DETAILS;
-        const timestamp = new Date(conv.CREATED_AT).toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-
-        contextText += `[${timestamp}]`;
-        if (details.email_subject) {
-          contextText += ` RE: ${details.email_subject.substring(0, 60)}`;
-        }
-        contextText += '\n';
-
-        if (details.user_message) {
-          contextText += `  User: ${details.user_message.substring(0, 150)}${details.user_message.length > 150 ? '...' : ''}\n`;
-        }
-        if (details.abbi_response) {
-          contextText += `  ABBI: ${details.abbi_response.substring(0, 150)}${details.abbi_response.length > 150 ? '...' : ''}\n`;
-        }
-        contextText += '\n';
-      });
-
-      contextText += '=== END CONVERSATION HISTORY ===\n\n';
-      contextText += '**IMPORTANT:** Use this history to:\n';
-      contextText += '- Detect if we\'re seeing duplicate/similar emails\n';
-      contextText += '- Know if responses have been received for emails we were waiting on\n';
-      contextText += '- Reference previous discussions and decisions\n';
-      contextText += '- Maintain continuity in our email management\n\n';
-    }
 
     // Add contact information to context if found
     if (contactResults.length > 0) {
@@ -455,15 +386,6 @@ You are powered by Claude Sonnet 4 (January 2025) with access to:
 - Contacts are tagged with: SOURCE = 'ABBI Contact Sync', CATEGORY = 'Contact'
 - Contact details stored in DETAILS column as JSON (name, email, phone, company, role, reference_name)
 
-**Conversation History:**
-- You have access to the last 7 days of our conversations about emails (stored in Hive Mind)
-- Use this history to:
-  * Detect duplicate or similar emails we've already discussed
-  * Track if expected responses have been received
-  * Reference previous decisions and discussions
-  * Maintain continuity across sessions
-- When you see related emails, mention "We discussed a similar email on [date]" or "This appears to be the response to [previous email]"
-
 **Hive Mind Query Examples:**
 When asked about contacts, the system searches Hive Mind on your behalf. Contact information is provided in your context. You don't need to write SQL - just reference the contacts provided.
 
@@ -525,11 +447,6 @@ When asked about contacts, the system searches Hive Mind on your behalf. Contact
       const answer = aiData.content[0].text.trim();
 
       console.log('✅ Chat response generated');
-
-      // Store conversation in Hive Mind for future reference
-      const emailSubject = email_context?.subject || emailData?.subject || null;
-      const emailId = message_id || email_context?.id || null;
-      await storeConversationInHiveMind(question, answer, emailId, emailSubject);
 
       return res.json({
         success: true,
