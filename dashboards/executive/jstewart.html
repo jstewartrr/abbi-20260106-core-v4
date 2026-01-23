@@ -57,11 +57,18 @@
 
         /* Collapse Toggle Buttons - positioned in center pane */
         .collapse-toggle{position:absolute;width:32px;height:32px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;transition:all .2s;opacity:0;top:50%;transform:translateY(-50%)}
-        .collapse-toggle:hover{background:var(--purple);border-color:var(--purple);color:#fff}
+        .collapse-toggle:hover{background:var(--purple);border-color:var(--purple);color:#fff;opacity:1}
         .collapse-toggle-left{left:-16px}
         .collapse-toggle-right{right:-16px}
-        .central-view:hover .collapse-toggle{opacity:1}
         .central-view{position:relative}
+
+        /* Hover zones for dividers - invisible areas that trigger button visibility */
+        .divider-hover-zone{position:absolute;top:0;bottom:0;width:60px;z-index:9}
+        .divider-hover-zone-left{left:-30px;cursor:ew-resize}
+        .divider-hover-zone-right{right:-30px;cursor:ew-resize}
+        .divider-hover-zone-left:hover + .divider-hover-zone-right + .collapse-toggle-left,
+        .central-view:has(.divider-hover-zone-left:hover) .collapse-toggle-left{opacity:1}
+        .central-view:has(.divider-hover-zone-right:hover) .collapse-toggle-right{opacity:1}
 
         /* Metric Cards */
         .metric-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:5px;transition:all .2s;width:100%;max-width:100%;box-sizing:border-box}
@@ -319,6 +326,10 @@
 
             <!-- Main Viewing Area (Center) -->
             <div class="central-view">
+                <!-- Hover zones for dividers -->
+                <div class="divider-hover-zone divider-hover-zone-left"></div>
+                <div class="divider-hover-zone divider-hover-zone-right"></div>
+
                 <!-- Collapse buttons in center pane -->
                 <div class="collapse-toggle collapse-toggle-left" onclick="toggleLeftPane()" title="Toggle left panel">
                     <span id="leftToggleIcon">◀</span>
