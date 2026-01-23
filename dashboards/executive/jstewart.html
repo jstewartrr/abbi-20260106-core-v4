@@ -3170,6 +3170,12 @@
                             html += '</div>';
                         }
 
+                        // Action buttons
+                        html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
+                        html += '<button class="response-btn" onclick="currentView=\'email-unprocessed\';renderContent()" style="flex:1;min-width:200px">← Back to Email List</button>';
+                        html += '<button class="response-btn primary" onclick="markEmailReadAndClose(\'' + emailId + '\')" style="flex:1;min-width:200px">✓ Mark as Read & Close</button>';
+                        html += '</div>';
+
                         html += '</div>';
                         html += '</div>';
 
