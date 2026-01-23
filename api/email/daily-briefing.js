@@ -257,51 +257,26 @@ export default async function handler(req, res) {
     console.log(`\n📧 RAW TOTAL fetched from M365 (before any filtering): ${rawFetchCount} emails`);
 
     // Handle jstewart@middleground.com Focused inbox filtering
-    // Mark and delete non-Focused emails from jstewart inbox
+    // TEMPORARILY DISABLED - Causing timeout issues
+    // Filter client-side only for now
     const jstewartInboxEmails = allEmails.filter(e =>
       e._sourceMailbox === 'jstewart@middleground.com' &&
       (e.folder === 'inbox' || e.folder === 'Inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
     );
 
     if (jstewartInboxEmails.length > 0) {
-      console.log(`\n📬 Processing ${jstewartInboxEmails.length} jstewart inbox emails for Focused filtering...`);
+      console.log(`\n📬 Found ${jstewartInboxEmails.length} jstewart inbox emails`);
 
+      // Filter out non-Focused emails from processing
       const otherEmails = jstewartInboxEmails.filter(e => {
-        // M365 uses inferenceClassification: "focused" or "other"
         const classification = e.inferenceClassification?.toLowerCase();
         return classification === 'other' || (!classification && !e.categories?.includes('Focused'));
       });
 
       if (otherEmails.length > 0) {
-        console.log(`🗑️  Found ${otherEmails.length} non-Focused emails in jstewart inbox - marking as read and deleting...`);
-
-        const emailIdsToDelete = otherEmails.map(e => e.id);
-
-        try {
-          // Mark as read first
-          await mcpCall('m365_mark_read', {
-            message_ids: emailIdsToDelete,
-            user: 'jstewart@middleground.com',
-            is_read: true
-          }, 20000);
-          console.log(`✓ Marked ${emailIdsToDelete.length} emails as read`);
-
-          // Delete (move to deleted items)
-          await mcpCall('m365_delete_email', {
-            message_ids: emailIdsToDelete,
-            user: 'jstewart@middleground.com',
-            permanent: false  // Move to deleted items, not permanent delete
-          }, 20000);
-          console.log(`✓ Deleted ${emailIdsToDelete.length} non-Focused emails from jstewart inbox`);
-
-          // Remove from processing list
-          allEmails = allEmails.filter(e => !emailIdsToDelete.includes(e.id));
-          console.log(`✓ Removed ${emailIdsToDelete.length} emails from processing list`);
-        } catch (error) {
-          console.error(`❌ Failed to mark/delete non-Focused emails:`, error.message);
-        }
-      } else {
-        console.log(`✓ All ${jstewartInboxEmails.length} jstewart inbox emails are Focused`);
+        console.log(`🗑️  Filtering out ${otherEmails.length} non-Focused emails from briefing`);
+        const emailIdsToFilter = otherEmails.map(e => e.id);
+        allEmails = allEmails.filter(e => !emailIdsToFilter.includes(e.id));
       }
     }
 
