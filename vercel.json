@@ -25,6 +25,12 @@
       ]
     }
   ],
+  "crons": [
+    {
+      "path": "/api/email/background-briefing-refresh",
+      "schedule": "0 6,10,14,18 * * *"
+    }
+  ],
   "github": {
     "silent": false
   }
