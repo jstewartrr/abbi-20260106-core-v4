@@ -46,7 +46,7 @@ async function searchContacts(query) {
     SELECT
       SUMMARY,
       DETAILS,
-      TIMESTAMP
+      CREATED_AT
     FROM SOVEREIGN_MIND.RAW.HIVE_MIND
     WHERE CATEGORY = 'Contact'
       AND SOURCE = 'ABBI Contact Sync'
@@ -57,7 +57,7 @@ async function searchContacts(query) {
         OR LOWER(DETAILS:company::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
         OR LOWER(DETAILS:reference_name::STRING) LIKE LOWER('%${query.replace(/'/g, "''")}%')
       )
-    ORDER BY TIMESTAMP DESC
+    ORDER BY CREATED_AT DESC
     LIMIT 10
   `;
 
