@@ -127,6 +127,46 @@ export default async function handler(req, res) {
       });
     }
 
+    // Check if user is requesting a contact database refresh
+    const refreshKeywords = ['refresh contacts', 'sync contacts', 'update contacts', 'refresh hive mind', 'sync hive mind', 'reload contacts'];
+    const isRefreshRequest = refreshKeywords.some(keyword => question.toLowerCase().includes(keyword));
+
+    if (isRefreshRequest) {
+      console.log('🔄 Detected contact refresh request');
+
+      try {
+        // Call the sync API to refresh contacts from source files
+        const syncResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/contacts/sync-from-files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+
+        const syncData = await syncResponse.json();
+
+        if (syncData.success) {
+          return res.json({
+            success: true,
+            answer: `✅ **Contact database refreshed successfully!**\n\n- **Total contacts synced:** ${syncData.total_synced || 'Unknown'}\n- **Last updated:** Just now\n\nYour contact database is now up to date. You can ask me about any contact.`,
+            has_email_context: false
+          });
+        } else {
+          return res.json({
+            success: true,
+            answer: `⚠️ **Contact refresh encountered an issue:**\n\n${syncData.error || 'Unknown error'}\n\nYou can still search existing contacts. Let me know if you need help.`,
+            has_email_context: false
+          });
+        }
+      } catch (refreshError) {
+        console.error('Contact refresh failed:', refreshError.message);
+        return res.json({
+          success: true,
+          answer: `❌ **Unable to refresh contacts right now.**\n\nError: ${refreshError.message}\n\nYour existing contact database is still available for searching. Try again later or contact support.`,
+          has_email_context: false
+        });
+      }
+    }
+
     // Check if question is about finding a contact
     const contactKeywords = ['email', 'contact', 'reach', 'address', 'phone', 'ceo', 'cfo', 'find', 'who is', 'how do i contact'];
     const isContactQuery = contactKeywords.some(keyword => question.toLowerCase().includes(keyword));
