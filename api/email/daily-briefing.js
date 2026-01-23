@@ -107,10 +107,75 @@ export default async function handler(req, res) {
     console.log(`📊 Daily Executive Email Briefing (ALL FOLDERS) - force: ${forceRefresh}...`);
     const startTime = Date.now();
 
-    // CACHE DISABLED for unread-only mode
-    // Cache is incompatible with unread tracking since emails get marked as read
-    // and cached results would show already-processed emails
-    console.log('⚡ Cache disabled - fetching live unread emails from M365');
+    // Check Snowflake cache first (unless force refresh)
+    if (!forceRefresh) {
+      try {
+        console.log('🔍 Checking Snowflake for cached results...');
+        const today = new Date().toISOString().split('T')[0];
+
+        const cacheQuery = `
+          SELECT
+            EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
+            CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
+            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT
+          FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+          WHERE BRIEFING_DATE = '${today}'
+          ORDER BY PROCESSED_AT DESC
+        `;
+
+        const cachedResults = await snowflakeCall(cacheQuery);
+
+        if (cachedResults && cachedResults.length > 0) {
+          // Check if results are fresh (< 24 hours old - same day cache is valid)
+          const latestProcessed = new Date(cachedResults[0].PROCESSED_AT);
+          const ageMinutes = (Date.now() - latestProcessed.getTime()) / 60000;
+
+          console.log(`📦 Found ${cachedResults.length} cached results, age: ${ageMinutes.toFixed(1)} minutes`);
+
+          if (ageMinutes < 1440) {
+            console.log('✅ Using cached results (fresh)');
+
+            // Transform Snowflake results to match expected format
+            const emails = cachedResults.map(row => ({
+              id: row.EMAIL_ID,
+              subject: row.SUBJECT,
+              from: row.FROM_NAME,
+              from_email: row.FROM_EMAIL,
+              preview: row.PREVIEW,
+              category: row.CATEGORY,
+              priority: row.PRIORITY,
+              is_to_email: row.IS_TO_EMAIL,
+              needs_response: row.NEEDS_RESPONSE,
+              folder: row.FOLDER,
+              mailbox: row.MAILBOX,
+              received: row.RECEIVED_AT
+            }));
+
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            return res.json({
+              success: true,
+              briefing_date: today,
+              total_emails_reviewed: cachedResults.length,
+              emails_requiring_attention: cachedResults.length,
+              emails: emails,
+              processing_time: `${elapsed}s`,
+              message: `Reviewed ${cachedResults.length} emails (cached ${ageMinutes.toFixed(0)}m ago)`,
+              cached: true,
+              cache_age_minutes: Math.round(ageMinutes),
+              last_processed: latestProcessed.toISOString()
+            });
+          } else {
+            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes > 24 hours), refreshing...`);
+          }
+        } else {
+          console.log('📭 No cached results found, processing fresh...');
+        }
+      } catch (cacheError) {
+        console.warn('⚠️ Cache check failed, proceeding with fresh processing:', cacheError.message);
+      }
+    } else {
+      console.log('🔄 Force refresh requested, bypassing cache');
+    }
 
     // Folder priority order as specified
     const folderPriority = [
@@ -151,10 +216,16 @@ export default async function handler(req, res) {
       '01.36 Portfolio Legal'
     ];
 
-    // Fetch UNREAD emails from ALL priority folders (no date filtering)
-    console.log(`📧 Fetching UNREAD emails from all configured folders...`);
+    // Fetch emails directly from M365 from ALL priority folders (both read AND unread from TODAY + YESTERDAY)
+    // Calculate yesterday at midnight in local time
+    const now = new Date();
+    const yesterdayMidnight = new Date(now);
+    yesterdayMidnight.setDate(now.getDate() - 1);
+    yesterdayMidnight.setHours(0, 0, 0, 0);
 
-    // ALL FOLDERS - Unified daily briefing (32 folders for john@, 5 for jstewart@)
+    console.log(`📧 Fetching emails from TODAY + YESTERDAY (since ${yesterdayMidnight.toISOString()})`);
+
+    // ALL FOLDERS - Unified daily briefing (31 folders total)
     const mailboxConfig = {
       'jstewart@middleground.com': [
         'inbox',
@@ -208,8 +279,8 @@ export default async function handler(req, res) {
           mcpCall('m365_read_emails', {
             user: mailbox,
             folder: folder,
-            unread_only: true,  // ONLY unread emails
-            top: 500  // High limit to catch all unread
+            unread_only: false,  // Get all emails, not just unread
+            top: 100  // Limit for daily briefing (reduced from 500 for speed)
           }, 15000)  // 15s timeout per folder
           .then(emailsResponse => {
             if (emailsResponse.emails && Array.isArray(emailsResponse.emails)) {
@@ -257,33 +328,79 @@ export default async function handler(req, res) {
     console.log(`\n📧 RAW TOTAL fetched from M365 (before any filtering): ${rawFetchCount} emails`);
 
     // Handle jstewart@middleground.com Focused inbox filtering
-    // TEMPORARILY DISABLED - Causing timeout issues
-    // Filter client-side only for now
+    // Mark and delete non-Focused emails from jstewart inbox
     const jstewartInboxEmails = allEmails.filter(e =>
       e._sourceMailbox === 'jstewart@middleground.com' &&
-      (e.folder === 'inbox' || e.folder === 'Inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
+      (e.folder === 'inbox' || e.parentFolderId?.toLowerCase().includes('inbox'))
     );
 
     if (jstewartInboxEmails.length > 0) {
-      console.log(`\n📬 Found ${jstewartInboxEmails.length} jstewart inbox emails`);
+      console.log(`\n📬 Processing ${jstewartInboxEmails.length} jstewart inbox emails for Focused filtering...`);
 
-      // Filter out non-Focused emails from processing
       const otherEmails = jstewartInboxEmails.filter(e => {
+        // M365 uses inferenceClassification: "focused" or "other"
         const classification = e.inferenceClassification?.toLowerCase();
         return classification === 'other' || (!classification && !e.categories?.includes('Focused'));
       });
 
       if (otherEmails.length > 0) {
-        console.log(`🗑️  Filtering out ${otherEmails.length} non-Focused emails from briefing`);
-        const emailIdsToFilter = otherEmails.map(e => e.id);
-        allEmails = allEmails.filter(e => !emailIdsToFilter.includes(e.id));
+        console.log(`🗑️  Found ${otherEmails.length} non-Focused emails in jstewart inbox - marking as read and deleting...`);
+
+        const emailIdsToDelete = otherEmails.map(e => e.id);
+
+        try {
+          // Mark as read first
+          await mcpCall('m365_mark_read', {
+            message_ids: emailIdsToDelete,
+            user: 'jstewart@middleground.com',
+            is_read: true
+          }, 20000);
+          console.log(`✓ Marked ${emailIdsToDelete.length} emails as read`);
+
+          // Delete (move to deleted items)
+          await mcpCall('m365_delete_email', {
+            message_ids: emailIdsToDelete,
+            user: 'jstewart@middleground.com',
+            permanent: false  // Move to deleted items, not permanent delete
+          }, 20000);
+          console.log(`✓ Deleted ${emailIdsToDelete.length} non-Focused emails from jstewart inbox`);
+
+          // Remove from processing list
+          allEmails = allEmails.filter(e => !emailIdsToDelete.includes(e.id));
+          console.log(`✓ Removed ${emailIdsToDelete.length} emails from processing list`);
+        } catch (error) {
+          console.error(`❌ Failed to mark/delete non-Focused emails:`, error.message);
+        }
+      } else {
+        console.log(`✓ All ${jstewartInboxEmails.length} jstewart inbox emails are Focused`);
       }
     }
 
-    console.log(`\n📧 TOTAL UNREAD emails fetched from all folders: ${allEmails.length}`);
+    console.log(`\n📧 TOTAL fetched from all folders BEFORE date filter: ${allEmails.length}`);
+    let sampleEmail = null;
+    if (allEmails.length > 0) {
+      sampleEmail = {
+        subject: allEmails[0].subject,
+        date: allEmails[0].date,
+        receivedDateTime: allEmails[0].receivedDateTime,
+        hasDateField: !!allEmails[0].date,
+        hasReceivedDateTimeField: !!allEmails[0].receivedDateTime
+      };
+      console.log(`Sample email:`, JSON.stringify(allEmails[0], null, 2).substring(0, 500));
+      console.log(`First email date field: ${allEmails[0].date}, receivedDateTime field: ${allEmails[0].receivedDateTime}`);
+    }
 
-    // NO DATE FILTERING - process ALL unread emails regardless of age
-    console.log(`✓ Processing all unread emails (no date filter applied)`);
+    // Filter to TODAY + YESTERDAY - include both read and unread
+    console.log(`\nDate cutoff (yesterday midnight): ${yesterdayMidnight.toISOString()}`);
+    allEmails = allEmails.filter(email => {
+      // M365 gateway returns 'date' field, not 'receivedDateTime'
+      const receivedDate = email.date ? new Date(email.date) : (email.receivedDateTime ? new Date(email.receivedDateTime) : null);
+      const passes = receivedDate && receivedDate >= yesterdayMidnight;
+      if (!passes && allEmails.indexOf(email) < 3) {
+        console.log(`  Email filtered out: ${email.subject?.substring(0, 40)}, date: ${email.date || email.receivedDateTime}, parsed: ${receivedDate?.toISOString()}`);
+      }
+      return passes;
+    });
 
     console.log(`📧 Total after TODAY+YESTERDAY filter: ${allEmails.length} emails`);
     console.log(`📊 Read vs Unread breakdown:`);
