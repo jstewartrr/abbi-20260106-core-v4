@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v8.94 - From/To/CC fields fixed for M365 API -->
+<!-- ABBI Executive Dashboard v8.95 - Chat conversation history fixed -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v8.94 | ABBI</title>
+    <title>Executive Dashboard v8.95 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -1987,7 +1987,7 @@
             if (!emailChatHistories[emailId]) {
                 emailChatHistories[emailId] = [];
             }
-            emailChatHistories[emailId].push({ role, message });
+            emailChatHistories[emailId].push({ role, content: message });
             if (emailChatHistories[emailId].length > 10) {
                 emailChatHistories[emailId].shift();
             }
@@ -2004,14 +2004,23 @@
             addChatMessage(emailId, 'assistant', '💭 Thinking...');
 
             try {
+                // Get email context for ABBI
+                const emailContext = email ? {
+                    from: email.from,
+                    to: email.to,
+                    subject: email.subject,
+                    received: email.received,
+                    preview: email.preview,
+                    body: email.body
+                } : null;
+
                 const response = await fetch('/api/email/chat-qa', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: question,
-                        message_id: emailId, // Enhanced v2.0: ABBI fetches full email and uses tools
-                        user: 'jstewart@middleground.com',
-                        chat_history: emailChatHistories[emailId]?.slice(-6) || [] // Last 6 messages for context
+                        email_context: emailContext,
+                        conversation_history: emailChatHistories[emailId]?.slice(-6) || [] // Last 6 messages for context
                     })
                 });
 
@@ -3595,9 +3604,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: 'Based on this email, what actions should John take? Provide: 1) Recommended response (if needed), 2) Key action items, 3) Any deadlines or time-sensitive matters. Be specific and actionable.',
-                        message_id: email.id || null,
-                        user: email.mailbox || 'jstewart@middleground.com',
-                        chat_history: [],
+                        conversation_history: [],
                         email_context: analysis,
                         context: {
                             view: 'daily-briefing'
@@ -3661,9 +3668,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: message,
-                        message_id: context.currentEmail?.id || null,
-                        user: 'jstewart@middleground.com',
-                        chat_history: abbiChatHistory.slice(-6), // Last 6 messages for context
+                        conversation_history: abbiChatHistory.slice(-6), // Last 6 messages for context
                         email_context: context.emailContext, // Full email analysis with comprehensive summary
                         context: {
                             view: context.currentView,

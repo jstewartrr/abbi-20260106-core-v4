@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { question, email_context, context } = req.body;
+    const { question, email_context, context, conversation_history } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -43,6 +43,22 @@ User Question: ${question}`;
       fullPrompt = emailData;
     }
 
+    // Build messages array with conversation history
+    let messages = [];
+
+    // Add previous conversation turns if provided
+    if (conversation_history && Array.isArray(conversation_history)) {
+      messages = conversation_history;
+    }
+
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: fullPrompt
+    });
+
+    console.log(`💬 Sending ${messages.length} messages to Claude (including history)`);
+
     // Call Claude API directly
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -54,10 +70,7 @@ User Question: ${question}`;
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: fullPrompt
-        }],
+        messages: messages,
         system: 'You are ABBI, John Stewart\'s AI assistant for email management at Middleground Capital. Analyze emails and provide clear, actionable guidance. Format responses with:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe concise and professional.'
       })
     });
