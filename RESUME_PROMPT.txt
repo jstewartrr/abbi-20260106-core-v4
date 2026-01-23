@@ -1,0 +1,15 @@
+PROMPT FOR NEXT CLAUDE CODE SESSION:
+
+Please read these files to resume the previous session:
+1. /Users/john/abbi-ai-site/SESSION_HANDOFF_2026-01-23.md (full context)
+2. /Users/john/abbi-ai-site/QUICK_START.md (immediate actions)
+
+Key context:
+- Version 8.88.7 was just deployed (may take 2-3 min to go live)
+- High-priority email flagging system implemented
+- 7-day conversation history tracking added
+- PENDING ISSUE: Non-Focused emails from jstewart@middleground.com inbox may still be appearing
+- Debug logging added to diagnose the issue
+- Need to check if deployment is live and if issue persists
+
+First action: Ask user if dashboard shows v8.88.7 and if they still see non-Focused inbox emails.
