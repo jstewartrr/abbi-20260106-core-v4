@@ -649,6 +649,10 @@ Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no e
           // Extract from field - handle both object and string formats
           let fromName = 'Unknown';
           let fromEmail = 'unknown';
+
+          // DEBUG: Log the actual structure
+          console.log(`🔍 DEBUG email.from structure for ${email.subject?.substring(0, 30)}:`, JSON.stringify(email.from));
+
           if (email.from) {
             if (typeof email.from === 'string') {
               fromName = email.from;
@@ -658,6 +662,8 @@ Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no e
               fromEmail = email.from.emailAddress.address;
             }
           }
+
+          console.log(`📧 Extracted: fromName="${fromName}", fromEmail="${fromEmail}"`);
 
           briefingEmails.push({
             id: result.id,
