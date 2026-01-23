@@ -2920,8 +2920,14 @@
                     html += '</div>';
 
                     emails.forEach((email, idx) => {
+                        // Check if high-priority (will be flagged when viewed)
+                        const isHighPriority = email.category === 'Urgent/Priority' ||
+                                               email.priority === 'urgent' ||
+                                               email.priority === 'high';
+                        const flagIndicator = isHighPriority ? '<span style="color:var(--red);margin-left:8px" title="High priority - flagged for follow-up">🚩</span>' : '';
+
                         html += '<div onclick="processEmail(\'' + email.id + '\')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'var(--card)\'">';
-                        html += '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(email.subject || 'No subject') + '</div>';
+                        html += '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(email.subject || 'No subject') + flagIndicator + '</div>';
                         html += '<div style="font-size:.8rem;color:var(--text2)">From: ' + escapeHtml(email.from) + ' • ' + (email.folder || 'Inbox') + '</div>';
                         html += '</div>';
                     });
@@ -2996,8 +3002,14 @@
                     html += '</div>';
 
                     filteredEmails.forEach((email, idx) => {
+                        // Check if high-priority (will be flagged when viewed)
+                        const isHighPriority = email.category === 'Urgent/Priority' ||
+                                               email.priority === 'urgent' ||
+                                               email.priority === 'high';
+                        const flagIndicator = isHighPriority ? '<span style="color:var(--red);margin-left:8px" title="High priority - flagged for follow-up">🚩</span>' : '';
+
                         html += '<div onclick="processEmail(\'' + email.id + '\')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'var(--card)\'">';
-                        html += '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(email.subject || 'No subject') + '</div>';
+                        html += '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(email.subject || 'No subject') + flagIndicator + '</div>';
                         html += '<div style="font-size:.8rem;color:var(--text2)">From: ' + escapeHtml(email.from) + ' • ' + (email.folder || 'Inbox') + '</div>';
                         html += '</div>';
                     });
