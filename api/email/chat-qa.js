@@ -1,4 +1,5 @@
 // ABBI Chat Q&A - Answer questions about emails with full context
+// v8.91 - Fixed contact search SQL error
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
