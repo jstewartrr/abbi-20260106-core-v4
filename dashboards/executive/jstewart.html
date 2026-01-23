@@ -597,6 +597,22 @@
             const activeRow = document.querySelector(`.metric-row[data-view="${view}"]`);
             if (activeRow) activeRow.classList.add('active');
 
+            // Check if this is a Daily Briefing category click
+            const briefingCategoryMap = {
+                'email-urgent-priority': 'Urgent/Priority',
+                'email-to-need-response': 'To: Need Response/Action',
+                'email-to-fyi': 'To: FYI',
+                'email-cc-need-response': 'CC: Need Response/Action',
+                'email-cc-fyi': 'CC: FYI'
+            };
+
+            // If Daily Briefing emails are loaded and this is a briefing category, filter them
+            if (window.allBriefingEmails && briefingCategoryMap[view]) {
+                console.log('📧 Switching to Daily Briefing category:', briefingCategoryMap[view]);
+                filterBriefingByCategory(briefingCategoryMap[view]);
+                return; // Don't call renderContent()
+            }
+
             // Set view title
             const titles = {
                 'tasks-received': 'Tasks Received Today',
