@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { question } = req.body;
+    const { question, email_context, context } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -19,6 +19,29 @@ export default async function handler(req, res) {
     }
 
     console.log(`💬 Chat Q&A - Question: ${question?.substring(0, 100)}`);
+    console.log(`📧 Email context: ${email_context ? 'Yes' : 'No'}`);
+
+    // Build context for AI
+    let fullPrompt = question;
+
+    if (email_context) {
+      const emailData = `
+EMAIL CONTEXT:
+From: ${email_context.from || 'Unknown'}
+To: ${email_context.to || 'Unknown'}
+Subject: ${email_context.subject || 'No subject'}
+Received: ${email_context.received || 'Unknown'}
+Preview: ${email_context.preview || ''}
+
+Full Email Body:
+${email_context.body || email_context.preview || 'No content available'}
+
+---
+
+User Question: ${question}`;
+
+      fullPrompt = emailData;
+    }
 
     // Call Claude API directly
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -33,9 +56,9 @@ export default async function handler(req, res) {
         max_tokens: 2000,
         messages: [{
           role: 'user',
-          content: question
+          content: fullPrompt
         }],
-        system: 'You are ABBI, a helpful AI assistant for email management. Answer questions concisely and professionally.'
+        system: 'You are ABBI, John Stewart\'s AI assistant for email management at Middleground Capital. Analyze emails and provide clear, actionable guidance. Format responses with:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe concise and professional.'
       })
     });
 
