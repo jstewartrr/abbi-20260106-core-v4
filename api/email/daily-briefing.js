@@ -216,16 +216,10 @@ export default async function handler(req, res) {
       '01.36 Portfolio Legal'
     ];
 
-    // Fetch emails directly from M365 from ALL priority folders (both read AND unread from TODAY + YESTERDAY)
-    // Calculate yesterday at midnight in local time
-    const now = new Date();
-    const yesterdayMidnight = new Date(now);
-    yesterdayMidnight.setDate(now.getDate() - 1);
-    yesterdayMidnight.setHours(0, 0, 0, 0);
+    // Fetch UNREAD emails from ALL priority folders (no date filtering)
+    console.log(`📧 Fetching UNREAD emails from all configured folders...`);
 
-    console.log(`📧 Fetching emails from TODAY + YESTERDAY (since ${yesterdayMidnight.toISOString()})`);
-
-    // ALL FOLDERS - Unified daily briefing (31 folders total)
+    // ALL FOLDERS - Unified daily briefing (32 folders for john@, 5 for jstewart@)
     const mailboxConfig = {
       'jstewart@middleground.com': [
         'inbox',
@@ -279,8 +273,8 @@ export default async function handler(req, res) {
           mcpCall('m365_read_emails', {
             user: mailbox,
             folder: folder,
-            unread_only: false,  // Get all emails, not just unread
-            top: 100  // Limit for daily briefing (reduced from 500 for speed)
+            unread_only: true,  // ONLY unread emails
+            top: 500  // High limit to catch all unread
           }, 15000)  // 15s timeout per folder
           .then(emailsResponse => {
             if (emailsResponse.emails && Array.isArray(emailsResponse.emails)) {
@@ -376,31 +370,10 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`\n📧 TOTAL fetched from all folders BEFORE date filter: ${allEmails.length}`);
-    let sampleEmail = null;
-    if (allEmails.length > 0) {
-      sampleEmail = {
-        subject: allEmails[0].subject,
-        date: allEmails[0].date,
-        receivedDateTime: allEmails[0].receivedDateTime,
-        hasDateField: !!allEmails[0].date,
-        hasReceivedDateTimeField: !!allEmails[0].receivedDateTime
-      };
-      console.log(`Sample email:`, JSON.stringify(allEmails[0], null, 2).substring(0, 500));
-      console.log(`First email date field: ${allEmails[0].date}, receivedDateTime field: ${allEmails[0].receivedDateTime}`);
-    }
+    console.log(`\n📧 TOTAL UNREAD emails fetched from all folders: ${allEmails.length}`);
 
-    // Filter to TODAY + YESTERDAY - include both read and unread
-    console.log(`\nDate cutoff (yesterday midnight): ${yesterdayMidnight.toISOString()}`);
-    allEmails = allEmails.filter(email => {
-      // M365 gateway returns 'date' field, not 'receivedDateTime'
-      const receivedDate = email.date ? new Date(email.date) : (email.receivedDateTime ? new Date(email.receivedDateTime) : null);
-      const passes = receivedDate && receivedDate >= yesterdayMidnight;
-      if (!passes && allEmails.indexOf(email) < 3) {
-        console.log(`  Email filtered out: ${email.subject?.substring(0, 40)}, date: ${email.date || email.receivedDateTime}, parsed: ${receivedDate?.toISOString()}`);
-      }
-      return passes;
-    });
+    // NO DATE FILTERING - process ALL unread emails regardless of age
+    console.log(`✓ Processing all unread emails (no date filter applied)`);
 
     console.log(`📧 Total after TODAY+YESTERDAY filter: ${allEmails.length} emails`);
     console.log(`📊 Read vs Unread breakdown:`);
