@@ -1183,7 +1183,7 @@
         }
 
         // Auto-mark email as read following v6.2 protocol
-        async function autoMarkEmailRead(emailId, view) {
+        async function autoMarkEmailRead(emailId, viewOrMailbox, explicitMailbox = null) {
             // Categories that should NEVER be auto-marked as read (high priority)
             const neverReadCategories = [
                 'email-investor',
@@ -1192,10 +1192,13 @@
             ];
 
             // Skip auto-marking for high-priority categories
-            if (neverReadCategories.includes(view)) {
-                console.log(`Email ${emailId} NOT marked as read (high priority category: ${view})`);
+            if (neverReadCategories.includes(viewOrMailbox)) {
+                console.log(`Email ${emailId} NOT marked as read (high priority category: ${viewOrMailbox})`);
                 return;
             }
+
+            // Determine mailbox: use explicitMailbox if provided, otherwise check if viewOrMailbox looks like an email
+            const mailbox = explicitMailbox || (viewOrMailbox?.includes('@') ? viewOrMailbox : 'jstewart@middleground.com');
 
             // Mark all other emails as read after viewing to prevent re-processing
             try {
@@ -1204,11 +1207,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message_ids: [emailId],
-                        user: 'jstewart@middleground.com',
+                        user: mailbox,
                         is_read: true
                     })
                 });
-                console.log(`✓ Email ${emailId} marked as read (category: ${view})`);
+                console.log(`✓ Email ${emailId} marked as read for ${mailbox}`);
             } catch (error) {
                 console.error('Error auto-marking email as read:', error);
             }
@@ -3183,6 +3186,11 @@
 
                         // Store email context for existing chat interface at bottom of page
                         window.currentEmailContext = analysis;
+
+                        // Auto-mark email as read (skip for high-priority categories)
+                        const mailbox = email.mailbox || 'jstewart@middleground.com';
+                        const emailCategory = analysis.category || email.category || 'unknown';
+                        autoMarkEmailRead(emailId, emailCategory, mailbox);
 
                         // Auto-generate suggested actions in chat panel
                         autoSuggestActions(email, analysis);
