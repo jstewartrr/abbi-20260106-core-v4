@@ -107,75 +107,10 @@ export default async function handler(req, res) {
     console.log(`📊 Daily Executive Email Briefing (ALL FOLDERS) - force: ${forceRefresh}...`);
     const startTime = Date.now();
 
-    // Check Snowflake cache first (unless force refresh)
-    if (!forceRefresh) {
-      try {
-        console.log('🔍 Checking Snowflake for cached results...');
-        const today = new Date().toISOString().split('T')[0];
-
-        const cacheQuery = `
-          SELECT
-            EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
-            CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
-            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT
-          FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
-          WHERE BRIEFING_DATE = '${today}'
-          ORDER BY PROCESSED_AT DESC
-        `;
-
-        const cachedResults = await snowflakeCall(cacheQuery);
-
-        if (cachedResults && cachedResults.length > 0) {
-          // Check if results are fresh (< 24 hours old - same day cache is valid)
-          const latestProcessed = new Date(cachedResults[0].PROCESSED_AT);
-          const ageMinutes = (Date.now() - latestProcessed.getTime()) / 60000;
-
-          console.log(`📦 Found ${cachedResults.length} cached results, age: ${ageMinutes.toFixed(1)} minutes`);
-
-          if (ageMinutes < 1440) {
-            console.log('✅ Using cached results (fresh)');
-
-            // Transform Snowflake results to match expected format
-            const emails = cachedResults.map(row => ({
-              id: row.EMAIL_ID,
-              subject: row.SUBJECT,
-              from: row.FROM_NAME,
-              from_email: row.FROM_EMAIL,
-              preview: row.PREVIEW,
-              category: row.CATEGORY,
-              priority: row.PRIORITY,
-              is_to_email: row.IS_TO_EMAIL,
-              needs_response: row.NEEDS_RESPONSE,
-              folder: row.FOLDER,
-              mailbox: row.MAILBOX,
-              received: row.RECEIVED_AT
-            }));
-
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-            return res.json({
-              success: true,
-              briefing_date: today,
-              total_emails_reviewed: cachedResults.length,
-              emails_requiring_attention: cachedResults.length,
-              emails: emails,
-              processing_time: `${elapsed}s`,
-              message: `Reviewed ${cachedResults.length} emails (cached ${ageMinutes.toFixed(0)}m ago)`,
-              cached: true,
-              cache_age_minutes: Math.round(ageMinutes),
-              last_processed: latestProcessed.toISOString()
-            });
-          } else {
-            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes > 24 hours), refreshing...`);
-          }
-        } else {
-          console.log('📭 No cached results found, processing fresh...');
-        }
-      } catch (cacheError) {
-        console.warn('⚠️ Cache check failed, proceeding with fresh processing:', cacheError.message);
-      }
-    } else {
-      console.log('🔄 Force refresh requested, bypassing cache');
-    }
+    // CACHE DISABLED for unread-only mode
+    // Cache is incompatible with unread tracking since emails get marked as read
+    // and cached results would show already-processed emails
+    console.log('⚡ Cache disabled - fetching live unread emails from M365');
 
     // Folder priority order as specified
     const folderPriority = [
