@@ -168,8 +168,9 @@ export default async function handler(req, res) {
     }
 
     // Check if question is about finding a contact
+    // TEMPORARILY DISABLED - SQL escaping issues causing errors
     const contactKeywords = ['email', 'contact', 'reach', 'address', 'phone', 'ceo', 'cfo', 'find', 'who is', 'how do i contact'];
-    const isContactQuery = contactKeywords.some(keyword => question.toLowerCase().includes(keyword));
+    const isContactQuery = false; // contactKeywords.some(keyword => question.toLowerCase().includes(keyword));
 
     let contactResults = [];
     if (isContactQuery) {
