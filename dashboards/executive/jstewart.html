@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v8.88.4 - Unified briefing with 24-hour Snowflake cache, auto-loads instantly, AZURE_WEST account -->
+<!-- ABBI Executive Dashboard v8.88.5 - Auto-suggest actions in chat, improved error handling, AZURE_WEST account -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v8.88.4 | ABBI</title>
+    <title>Executive Dashboard v8.88.5 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -227,7 +227,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-22.v8.88.4</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-22.v8.88.5</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button class="nav-logout" onclick="logout()">Logout</button>
@@ -3155,6 +3155,9 @@
                         // Store email context for existing chat interface at bottom of page
                         window.currentEmailContext = analysis;
 
+                        // Auto-generate suggested actions in chat panel
+                        autoSuggestActions(email, analysis);
+
                         // Preload next and previous emails in background for instant navigation
                         if (hasNext) {
                             const nextEmailId = window.allBriefingEmails[currentIndex + 1].id;
@@ -3474,6 +3477,66 @@
 
         // v8.44: ABBI Chat Functions
         let abbiChatHistory = [];
+
+        // Auto-suggest actions when email loads
+        async function autoSuggestActions(email, analysis) {
+            const messagesContainer = document.getElementById('abbiChatMessages');
+            if (!messagesContainer) return;
+
+            // Clear previous chat history for new email
+            abbiChatHistory = [];
+            messagesContainer.innerHTML = '';
+
+            // Add system message
+            addAbbiChatMessage('assistant', '💡 Analyzing email and generating action suggestions...');
+
+            // Build context
+            const context = {
+                emailContext: analysis,
+                currentEmail: email,
+                currentView: 'daily-briefing'
+            };
+
+            try {
+                const response = await fetch('/api/email/chat-qa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: 'Based on this email, what actions should John take? Provide: 1) Recommended response (if needed), 2) Key action items, 3) Any deadlines or time-sensitive matters. Be specific and actionable.',
+                        message_id: email.id || null,
+                        user: email.mailbox || 'jstewart@middleground.com',
+                        chat_history: [],
+                        email_context: analysis,
+                        context: {
+                            view: 'daily-briefing'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                // Remove thinking message
+                const lastMessage = messagesContainer.lastElementChild;
+                if (lastMessage && lastMessage.textContent.includes('Analyzing')) {
+                    messagesContainer.removeChild(lastMessage);
+                    abbiChatHistory = []; // Clear the thinking message from history
+                }
+
+                if (data.success && data.answer) {
+                    addAbbiChatMessage('assistant', data.answer);
+                } else {
+                    addAbbiChatMessage('assistant', '❌ Could not generate suggestions. Try asking me a question!');
+                }
+            } catch (error) {
+                console.error('Auto-suggest error:', error);
+                // Remove thinking message
+                const lastMessage = messagesContainer.lastElementChild;
+                if (lastMessage && lastMessage.textContent.includes('Analyzing')) {
+                    messagesContainer.removeChild(lastMessage);
+                }
+                addAbbiChatMessage('assistant', '❌ Error generating suggestions: ' + error.message);
+            }
+        }
 
         async function sendAbbiMessage() {
             const input = document.getElementById('abbiChatInput');

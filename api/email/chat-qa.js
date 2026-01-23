@@ -144,6 +144,14 @@ User Question: ${question}`;
     console.log('🤖 Calling Claude AI...');
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
+    if (!anthropicKey) {
+      console.error('❌ ANTHROPIC_API_KEY not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'AI service not configured. Please check environment variables.'
+      });
+    }
+
     const aiController = new AbortController();
     const aiTimeoutId = setTimeout(() => aiController.abort(), 30000);
 
@@ -176,7 +184,9 @@ When answering questions:
       clearTimeout(aiTimeoutId);
 
       if (!aiRes.ok) {
-        throw new Error(`AI API returned ${aiRes.status}`);
+        const errorText = await aiRes.text();
+        console.error(`AI API error ${aiRes.status}:`, errorText);
+        throw new Error(`AI API returned ${aiRes.status}: ${errorText.substring(0, 200)}`);
       }
 
       const aiData = await aiRes.json();
@@ -192,9 +202,10 @@ When answering questions:
 
     } catch (aiError) {
       console.error('AI error:', aiError.message);
+      console.error('AI error stack:', aiError.stack);
       return res.status(500).json({
         success: false,
-        error: 'AI service temporarily unavailable. Please try again.'
+        error: `AI service error: ${aiError.message}`
       });
     }
 
