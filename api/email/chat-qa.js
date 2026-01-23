@@ -65,38 +65,10 @@ async function getRecentConversationHistory(days = 7) {
 }
 
 async function storeConversationInHiveMind(userMessage, abbiResponse, emailId = null, emailSubject = null) {
-  // Store conversation turn in Hive Mind for future reference
-  try {
-    const details = {
-      user_message: userMessage,
-      abbi_response: abbiResponse,
-      email_id: emailId,
-      email_subject: emailSubject,
-      session_timestamp: new Date().toISOString()
-    };
-
-    const summary = emailSubject
-      ? `Chat about: ${emailSubject.substring(0, 100)}`
-      : `Chat: ${userMessage.substring(0, 100)}`;
-
-    const insertQuery = `
-      INSERT INTO SOVEREIGN_MIND.RAW.HIVE_MIND
-      (SOURCE, CATEGORY, WORKSTREAM, PRIORITY, SUMMARY, DETAILS)
-      SELECT
-        'ABBI Chat',
-        'Conversation',
-        'Email Management',
-        'reference',
-        '${summary.replace(/'/g, "''")}',
-        PARSE_JSON('${JSON.stringify(details).replace(/'/g, "''").replace(/\\/g, '\\\\')}')
-    `;
-
-    await snowflakeCall(insertQuery);
-    console.log('✓ Conversation stored in Hive Mind');
-  } catch (error) {
-    console.error('Error storing conversation in Hive Mind:', error);
-    // Don't fail the request if storage fails
-  }
+  // TEMPORARILY DISABLED - SQL string escaping causing "pattern mismatch" errors
+  // TODO: Re-enable with proper parameterized queries or base64 encoding
+  console.log('⚠️ Conversation storage temporarily disabled');
+  return;
 }
 
 async function searchContacts(query) {
