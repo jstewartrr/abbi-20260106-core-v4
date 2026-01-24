@@ -266,19 +266,24 @@ export default async function handler(req, res) {
 
     const startTime = Date.now();
 
-    // Folders to process for jstewart@middleground.com
-    const folders = [
-      'inbox',
-      'Important',
-      'Portfolio Companies',
-      'Deals',
-      'Investors'
-    ];
+    // Mailboxes and folders - fetch from BOTH mailboxes
+    const mailboxFolders = {
+      'jstewart@middleground.com': ['inbox'],
+      'john@middleground.com': ['inbox']
+    };
 
-    // Step 1: Fetch emails
-    console.log('\n📥 STEP 1: Fetching emails');
-    const emails = await fetchEmails('jstewart@middleground.com', folders);
-    console.log(`Total fetched: ${emails.length} emails\n`);
+    // Step 1: Fetch emails from BOTH mailboxes
+    console.log('\n📥 STEP 1: Fetching emails from both mailboxes');
+    let allEmails = [];
+
+    for (const [mailbox, folders] of Object.entries(mailboxFolders)) {
+      const mailboxEmails = await fetchEmails(mailbox, folders);
+      console.log(`  ${mailbox}: ${mailboxEmails.length} emails`);
+      allEmails.push(...mailboxEmails);
+    }
+
+    const emails = allEmails;
+    console.log(`Total fetched: ${emails.length} emails from both inboxes\n`);
 
     if (emails.length === 0) {
       return res.json({
