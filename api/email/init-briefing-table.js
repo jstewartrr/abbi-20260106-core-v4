@@ -1,5 +1,5 @@
 // One-time API to create EMAIL_BRIEFING_RESULTS table in Snowflake
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 async function mcpCall(tool, args = {}) {
   const res = await fetch(SNOWFLAKE_GATEWAY, {

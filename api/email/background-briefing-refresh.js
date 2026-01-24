@@ -1,7 +1,7 @@
 // Background Daily Briefing Refresh - Auto-runs every 3 hours to keep cache fresh
 // This ensures instant load when user opens dashboard
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 // Import the same processing logic from daily-briefing.js
 // We'll call the daily-briefing endpoint with force=true to trigger fresh processing
