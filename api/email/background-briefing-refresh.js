@@ -1,7 +1,9 @@
 // Background Daily Briefing Refresh - Auto-runs every 3 hours to keep cache fresh
-// Calls Azure triage service which processes emails with AI and caches to Snowflake
+// Calls local triage webhook which processes emails with AI and caches to Snowflake
 
-const TRIAGE_SERVICE_URL = 'https://cv-executive-dashboard-triage.lemoncoast-87756bcf.eastus.azurecontainerapps.io/triage';
+const TRIAGE_WEBHOOK_URL = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}/api/email/triage-webhook`
+  : 'http://localhost:3000/api/email/triage-webhook';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -22,14 +24,17 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('🔄 Background briefing refresh triggered - calling Azure triage service...');
+    console.log('🔄 Background briefing refresh triggered - calling triage webhook...');
     const startTime = Date.now();
 
-    // Call the Azure Container App triage service (no timeout limits)
-    const response = await fetch(TRIAGE_SERVICE_URL, {
+    const webhookSecret = process.env.WEBHOOK_SECRET || 'dev-secret-12345';
+
+    // Call the triage webhook (internal endpoint, 5 min timeout)
+    const response = await fetch(TRIAGE_WEBHOOK_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${webhookSecret}`
       }
     });
 
@@ -41,15 +46,17 @@ export default async function handler(req, res) {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     console.log(`✅ Background refresh complete in ${elapsed}s`);
-    console.log(`   Processed ${data.total_emails_reviewed} emails`);
-    console.log(`   ${data.emails_requiring_attention} requiring attention`);
+    console.log(`   Fetched ${data.total_emails_fetched} emails`);
+    console.log(`   Triaged ${data.emails_triaged} emails`);
+    console.log(`   Cached ${data.emails_cached} important emails`);
 
     return res.json({
       success: true,
       message: 'Background briefing refresh completed',
       processing_time: `${elapsed}s`,
-      emails_processed: data.total_emails_reviewed,
-      emails_cached: data.emails_requiring_attention,
+      emails_fetched: data.total_emails_fetched,
+      emails_triaged: data.emails_triaged,
+      emails_cached: data.emails_cached,
       briefing_date: data.briefing_date,
       next_refresh: 'In 3 hours'
     });
