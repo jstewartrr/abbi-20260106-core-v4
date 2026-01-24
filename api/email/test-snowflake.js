@@ -17,7 +17,7 @@ export default async function handler(req, res) {
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'sm_query_snowflake',
+          name: 'query_snowflake',
           arguments: { sql: testQuery }
         },
         id: Date.now()

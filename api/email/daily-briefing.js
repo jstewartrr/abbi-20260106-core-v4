@@ -20,7 +20,7 @@ async function snowflakeCall(query, timeoutMs = 15000) {
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: 'sm_query_snowflake', arguments: { sql: query } },
+        params: { name: 'query_snowflake', arguments: { sql: query } },
         id: Date.now()
       }),
       signal: controller.signal

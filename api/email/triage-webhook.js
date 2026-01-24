@@ -22,7 +22,7 @@ async function mcpCall(gateway, tool, args = {}, timeoutMs = 30000) {
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'tools/call',
-        params: { name: tool, arguments: args },
+        params: { name: tool === 'sm_query_snowflake' ? 'query_snowflake' : tool, arguments: args },
         id: Date.now()
       })
     });
