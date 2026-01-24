@@ -187,15 +187,10 @@ async function cacheToSnowflake(emails) {
   console.log(`\n💾 Caching results to Snowflake...`);
   const today = new Date().toISOString().split('T')[0];
 
-  // Filter: Only cache emails that are urgent/high priority OR need response
-  // This excludes spam and pure FYI emails
-  const important = emails.filter(e =>
-    e.priority === 'urgent' ||
-    e.priority === 'high' ||
-    e.needs_response === true
-  );
+  // Cache ALL emails - no filtering (user wants to see everything)
+  const important = emails;
 
-  console.log(`  Filtering: ${emails.length} total → ${important.length} important (excluding spam/automated)`);
+  console.log(`  Caching ALL ${emails.length} emails (no filtering)`);
 
   // Clear today's cache
   try {
