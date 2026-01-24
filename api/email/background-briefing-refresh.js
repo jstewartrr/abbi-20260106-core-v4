@@ -1,10 +1,7 @@
 // Background Daily Briefing Refresh - Auto-runs every 3 hours to keep cache fresh
-// This ensures instant load when user opens dashboard
-const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+// Calls Azure triage service which processes emails with AI and caches to Snowflake
 
-// Import the same processing logic from daily-briefing.js
-// We'll call the daily-briefing endpoint with force=true to trigger fresh processing
+const TRIAGE_SERVICE_URL = 'https://cv-executive-dashboard-triage.lemoncoast-87756bcf.eastus.azurecontainerapps.io/triage';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,26 +22,19 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('🔄 Background briefing refresh triggered...');
+    console.log('🔄 Background briefing refresh triggered - calling Azure triage service...');
     const startTime = Date.now();
 
-    // Call the daily briefing endpoint with force=true to trigger fresh processing
-    const briefingUrl = `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/email/daily-briefing?force=true`;
-
-    console.log(`📞 Calling daily briefing API: ${briefingUrl}`);
-
-    const response = await fetch(briefingUrl, {
+    // Call the Azure Container App triage service (no timeout limits)
+    const response = await fetch(TRIAGE_SERVICE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        user: 'jstewart@middleground.com'
-      })
+      }
     });
 
     if (!response.ok) {
-      throw new Error(`Daily briefing API returned ${response.status}`);
+      throw new Error(`Triage service returned ${response.status}`);
     }
 
     const data = await response.json();
