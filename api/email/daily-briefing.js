@@ -171,17 +171,61 @@ export default async function handler(req, res) {
               last_processed: latestProcessed.toISOString()
             });
           } else {
-            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes > 24 hours), refreshing...`);
+            console.log(`⏰ Cached results too old (${ageMinutes.toFixed(0)} minutes > 24 hours)`);
+            console.log('📭 Returning empty - use Refresh Emails button to update cache');
+            return res.json({
+              success: true,
+              briefing_date: today,
+              total_emails_reviewed: 0,
+              emails_requiring_attention: 0,
+              emails: [],
+              processing_time: '0s',
+              message: 'Cache expired - click Refresh Emails button to update',
+              cached: false,
+              cache_age_minutes: Math.round(ageMinutes)
+            });
           }
         } else {
-          console.log('📭 No cached results found, processing fresh...');
+          console.log('📭 No cached results found - use Refresh Emails button to populate cache');
+          return res.json({
+            success: true,
+            briefing_date: today,
+            total_emails_reviewed: 0,
+            emails_requiring_attention: 0,
+            emails: [],
+            processing_time: '0s',
+            message: 'No cached emails - click Refresh Emails button to load emails',
+            cached: false
+          });
         }
       } catch (cacheError) {
-        console.warn('⚠️ Cache check failed, proceeding with fresh processing:', cacheError.message);
+        console.warn('⚠️ Cache check failed:', cacheError.message);
+        return res.json({
+          success: true,
+          briefing_date: today,
+          total_emails_reviewed: 0,
+          emails_requiring_attention: 0,
+          emails: [],
+          processing_time: '0s',
+          message: 'Cache error - click Refresh Emails button',
+          cached: false,
+          error: cacheError.message
+        });
       }
-    } else {
-      console.log('🔄 Force refresh requested, bypassing cache');
     }
+
+    // Force refresh is no longer supported - always use cache only
+    console.log('⚠️ Live processing disabled - cache-only mode');
+    return res.json({
+      success: true,
+      briefing_date: today,
+      total_emails_reviewed: 0,
+      emails_requiring_attention: 0,
+      emails: [],
+      processing_time: '0s',
+      message: 'Cache-only mode - use Refresh Emails button',
+      cached: false
+    });
 
     // Folder priority order as specified
     const folderPriority = [
