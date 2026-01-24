@@ -362,7 +362,13 @@ Be direct, concise, professional. You're an executor, not just an advisor.`
 
         // Execute the tool with error handling
         try {
-          toolResult = await mcpCall(toolUse.name, toolUse.input);
+          // Add user parameter for M365 tools
+          const toolInput = { ...toolUse.input };
+          if (toolUse.name.startsWith('m365_')) {
+            toolInput.user = 'jstewart@middleground.com';
+          }
+
+          toolResult = await mcpCall(toolUse.name, toolInput);
           console.log(`✅ Tool executed successfully`);
         } catch (toolErr) {
           console.error(`❌ Tool execution failed:`, toolErr.message);
