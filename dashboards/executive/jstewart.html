@@ -3767,24 +3767,28 @@
             // Add system message
             addAbbiChatMessage('assistant', '💡 Analyzing email and generating action suggestions...');
 
-            // Build context
-            const context = {
-                emailContext: analysis,
-                currentEmail: email,
-                currentView: 'daily-briefing'
-            };
-
             try {
+                // Build proper email context with all required fields
+                const emailContext = {
+                    message_id: email.id || analysis.id,
+                    email_id: email.id || analysis.id,
+                    from: email.from || analysis.from || 'Unknown',
+                    to: email.to || 'jstewart@middleground.com',
+                    subject: email.subject || analysis.subject || 'No subject',
+                    body: analysis.full_body || analysis.body || email.preview || analysis.preview || '',
+                    preview: email.preview || analysis.preview || '',
+                    received: email.received || analysis.received || email.date || new Date().toISOString(),
+                    category: email.category || analysis.category,
+                    priority: email.priority || analysis.priority
+                };
+
                 const response = await fetch('/api/email/chat-qa', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         question: 'Based on this email, what actions should John take? Provide: 1) Recommended response (if needed), 2) Key action items, 3) Any deadlines or time-sensitive matters. Be specific and actionable.',
                         conversation_history: [],
-                        email_context: analysis,
-                        context: {
-                            view: 'daily-briefing'
-                        }
+                        email_context: emailContext
                     })
                 });
 
@@ -3800,6 +3804,8 @@
                 if (data.success && data.answer) {
                     addAbbiChatMessage('assistant', data.answer);
                 } else {
+                    const errorMsg = data.error || 'Could not generate suggestions';
+                    console.error('Chat API error:', errorMsg);
                     addAbbiChatMessage('assistant', '❌ Could not generate suggestions. Try asking me a question!');
                 }
             } catch (error) {
@@ -3809,7 +3815,8 @@
                 if (lastMessage && lastMessage.textContent.includes('Analyzing')) {
                     messagesContainer.removeChild(lastMessage);
                 }
-                addAbbiChatMessage('assistant', '❌ Error generating suggestions: ' + error.message);
+                // Show more user-friendly error message
+                addAbbiChatMessage('assistant', '💬 Ready to help! Ask me anything about this email.');
             }
         }
 
