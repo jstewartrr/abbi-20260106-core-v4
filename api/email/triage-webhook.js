@@ -2,7 +2,7 @@
 // This endpoint should be called by Make.com scenarios on a schedule
 
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 // Extend timeout for email processing

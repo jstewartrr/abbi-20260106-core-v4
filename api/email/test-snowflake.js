@@ -1,5 +1,5 @@
 // Test Snowflake connection and response format
-const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

@@ -1,5 +1,5 @@
 // Test cache endpoint - check if emails are in the cache
-const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 async function snowflakeCall(query) {
   const res = await fetch(SNOWFLAKE_GATEWAY, {
