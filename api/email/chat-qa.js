@@ -1,19 +1,24 @@
-// ABBI Chat Q&A - v9.3.1 with full M365/Asana/Calendar support (unified gateway restored)
+// ABBI Chat Q&A - v9.4.13 with M365 gateway (fixed FUNCTION_INVOCATION_FAILED error)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const UNIFIED_GATEWAY = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 
-// MCP tool call helper with timeout - routes to unified gateway for all tools
+// Extend timeout for AI chat processing
+export const config = {
+  maxDuration: 300, // 5 minutes
+};
+
+// MCP tool call helper with timeout - routes to M365 gateway for all tools
 async function mcpCall(tool, args = {}) {
-  // Unified gateway expects prefixed tool names (m365_, asana_, etc.)
+  // M365 gateway expects prefixed tool names (m365_, asana_, etc.)
   const actualToolName = tool;
 
   console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) with args:`, JSON.stringify(args).substring(0, 200));
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout (increased from 15s)
 
   try {
-    const res = await fetch(UNIFIED_GATEWAY, {
+    const res = await fetch(M365_GATEWAY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
