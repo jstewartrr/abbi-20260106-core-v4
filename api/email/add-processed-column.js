@@ -35,17 +35,26 @@ export default async function handler(req, res) {
   try {
     console.log('Adding PROCESSED column to EMAIL_BRIEFING_RESULTS table...');
 
-    // Add PROCESSED column if it doesn't exist
-    const alterTableSQL = `
-      ALTER TABLE SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
-      ADD COLUMN IF NOT EXISTS PROCESSED BOOLEAN DEFAULT false
-    `;
+    // Try to add PROCESSED column - ignore error if already exists
+    try {
+      const alterTableSQL = `
+        ALTER TABLE SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+        ADD COLUMN PROCESSED BOOLEAN DEFAULT false
+      `;
 
-    await mcpCall('sm_query_snowflake', {
-      sql: alterTableSQL
-    });
+      await mcpCall('sm_query_snowflake', {
+        sql: alterTableSQL
+      });
 
-    console.log('✅ PROCESSED column added successfully');
+      console.log('✅ PROCESSED column added successfully');
+    } catch (alterError) {
+      // Column likely already exists
+      if (alterError.message.includes('already exists') || alterError.message.includes('duplicate')) {
+        console.log('ℹ️ PROCESSED column already exists');
+      } else {
+        throw alterError;
+      }
+    }
 
     return res.json({
       success: true,
