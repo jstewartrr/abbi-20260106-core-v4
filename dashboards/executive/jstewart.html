@@ -1300,6 +1300,34 @@
                 } else {
                     console.log(`✓ Email ${emailId} marked as read for ${mailbox}`);
                 }
+
+                // REMOVE EMAIL FROM DASHBOARD after processing
+                if (window.allBriefingEmails) {
+                    const emailIndex = window.allBriefingEmails.findIndex(e => e.id === emailId);
+                    if (emailIndex !== -1) {
+                        console.log(`🗑️ Removing processed email ${emailId} from dashboard`);
+                        window.allBriefingEmails.splice(emailIndex, 1);
+
+                        // Update sidebar counts and re-render email list
+                        updateSidebarCounts();
+                        renderEmailList();
+
+                        // If this was the expanded email, move to next or close
+                        if (expandedEmailId === emailId) {
+                            if (window.allBriefingEmails.length > 0) {
+                                // Move to next email (or first if we were at the end)
+                                const nextEmail = window.allBriefingEmails[emailIndex] || window.allBriefingEmails[0];
+                                expandedEmailId = nextEmail.id;
+                                renderExpandedEmail();
+                                autoMarkEmailRead(expandedEmailId, currentView);
+                            } else {
+                                // No more emails - return to briefing view
+                                expandedEmailId = null;
+                                switchView('daily-briefing');
+                            }
+                        }
+                    }
+                }
             } catch (error) {
                 console.error('Error auto-marking email as read:', error);
             }
@@ -1321,6 +1349,76 @@
             } catch (error) {
                 console.error('Error unflagging email:', error);
             }
+        }
+
+        // Update sidebar counts after email removal
+        function updateSidebarCounts() {
+            if (!window.allBriefingEmails) return;
+
+            // Count by category
+            const emailsByCategory = {
+                'Urgent/Priority': [],
+                'To: Need Response/Action': [],
+                'To: FYI': [],
+                'CC: Need Response/Action': [],
+                'CC: FYI': []
+            };
+
+            window.allBriefingEmails.forEach(email => {
+                const category = email.category || 'To: FYI';
+                if (emailsByCategory[category]) {
+                    emailsByCategory[category].push(email);
+                }
+            });
+
+            // Update sidebar
+            document.getElementById('email-urgent-priority').textContent = emailsByCategory['Urgent/Priority'].length;
+            document.getElementById('email-to-need-response').textContent = emailsByCategory['To: Need Response/Action'].length;
+            document.getElementById('email-to-fyi').textContent = emailsByCategory['To: FYI'].length;
+            document.getElementById('email-cc-need-response').textContent = emailsByCategory['CC: Need Response/Action'].length;
+            document.getElementById('email-cc-fyi').textContent = emailsByCategory['CC: FYI'].length;
+        }
+
+        // Re-render email list after removal (if viewing filtered category)
+        function renderEmailList() {
+            // If we're viewing a category in the daily briefing, refresh it
+            if (currentView === 'daily-briefing' && window.currentBriefingCategory) {
+                filterBriefingByCategory(window.currentBriefingCategory);
+            }
+        }
+
+        // Filter briefing emails by category and display
+        function filterBriefingByCategory(category) {
+            if (!window.allBriefingEmails) return;
+
+            window.currentBriefingCategory = category;
+            const container = document.getElementById('content');
+            if (!container) return;
+
+            // Filter emails by category
+            const filteredEmails = window.allBriefingEmails.filter(email => {
+                return email.category === category;
+            });
+
+            // Render filtered list
+            let html = '<div style="padding:20px">';
+            html += `<h2 style="margin-bottom:20px">${category} (${filteredEmails.length})</h2>`;
+
+            if (filteredEmails.length === 0) {
+                html += '<div style="color:var(--text2);padding:20px;text-align:center">No emails in this category</div>';
+            } else {
+                filteredEmails.forEach(email => {
+                    html += `<div onclick="processEmail('${email.id}')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='var(--card)'">`;
+                    html += `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(email.subject || 'No subject')}</div>`;
+                    html += `<div style="font-size:.8rem;color:var(--text2)">From: ${escapeHtml(email.from)} • ${email.folder || 'Inbox'}</div>`;
+                    html += '</div>';
+                });
+            }
+
+            html += '<button onclick="switchView(\'daily-briefing\')" style="margin-top:20px;padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:6px;cursor:pointer">← Back to All Categories</button>';
+            html += '</div>';
+
+            container.innerHTML = html;
         }
 
         // Process all emails with AI triage
