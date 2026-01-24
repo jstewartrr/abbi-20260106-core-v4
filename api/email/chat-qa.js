@@ -1,13 +1,11 @@
-// ABBI Chat Q&A - v8.100 with full dashboard tools
+// ABBI Chat Q&A - v9.3 with full M365/Asana/Calendar support (unified gateway restored)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const UNIFIED_GATEWAY = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 // MCP tool call helper with timeout - routes to unified gateway for all tools
 async function mcpCall(tool, args = {}) {
-  // Remove tool prefix - unified gateway handles routing internally
-  const actualToolName = tool.startsWith('m365_') || tool.startsWith('asana_')
-    ? tool.split('_').slice(1).join('_')  // Remove prefix: m365_send_email → send_email
-    : tool;
+  // Unified gateway expects prefixed tool names (m365_, asana_, etc.)
+  const actualToolName = tool;
 
   console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) with args:`, JSON.stringify(args).substring(0, 200));
 
@@ -135,13 +133,14 @@ User Question: ${question}`;
       },
       {
         name: 'm365_reply_email',
-        description: 'Reply to an email. Can add CC recipients to loop in additional people. Use reply_all to include all original recipients.',
+        description: 'Reply to an email. Can add CC and To recipients to loop in additional people. Use reply_all to include all original recipients.',
         input_schema: {
           type: 'object',
           properties: {
             message_id: { type: 'string', description: 'ID of the email to reply to (from EMAIL CONTEXT)' },
             body: { type: 'string', description: 'Reply body text' },
             cc: { type: 'array', items: { type: 'string' }, description: 'CC recipients to add (email addresses, optional)' },
+            to: { type: 'array', items: { type: 'string' }, description: 'Additional To recipients to add (email addresses, optional)' },
             reply_all: { type: 'boolean', description: 'Reply to all original recipients (default: false, optional)' }
           },
           required: ['message_id', 'body']
@@ -149,7 +148,7 @@ User Question: ${question}`;
       },
       {
         name: 'm365_forward_email',
-        description: 'Forward an email to new recipients. Use this to add people to an existing email thread.',
+        description: 'Forward an email to new recipients',
         input_schema: {
           type: 'object',
           properties: {
@@ -290,8 +289,8 @@ Additional context available:
 
 EMAIL MANAGEMENT:
 - m365_send_email: Send new email (to, cc, subject, body)
-- m365_reply_email: Reply to email AND add CC recipients (message_id, body, cc, reply_all)
-- m365_forward_email: Forward email to new people (message_id, to, comment)
+- m365_reply_email: Reply AND add CC/To recipients (message_id, body, cc, to, reply_all)
+- m365_forward_email: Forward email (message_id, to, comment)
 
 CALENDAR MANAGEMENT:
 - m365_create_event: Create meeting (subject, start, end, attendees, location, is_online)
@@ -320,16 +319,17 @@ John's Constants:
 1. Provide analysis and recommendations
 2. DO NOT use tools unless John explicitly says to execute
 
-**For "Reply and Add People"**:
-Use the cc parameter in m365_reply_email to add people as CC recipients.
+**Adding People to Replies** (IMPORTANT):
+m365_reply_email now supports adding CC AND To recipients!
 
 Examples:
 - "Reply saying I'll follow up tomorrow" → Draft reply, call m365_reply_email, report success
-- "Reply and CC Sarah and Mark" → Call m365_reply_email with cc: ['sarah@example.com', 'mark@example.com']
-- "Reply all and add john@example.com as CC" → Call m365_reply_email with reply_all: true, cc: ['john@example.com']
-- "Forward this to Sarah and Mark" → Call m365_forward_email with their emails
-- "Create a task for this" → Call asana_create_task with appropriate project
-- "Schedule a meeting with CFO next Tuesday 2pm" → Call m365_create_event
+- "Reply and CC Sarah and Mark" → m365_reply_email with cc: ['sarah@example.com', 'mark@example.com']
+- "Reply all and add john@example.com as CC" → m365_reply_email with reply_all: true, cc: ['john@example.com']
+- "Reply and add Sarah to the email" → m365_reply_email with to: ['sarah@example.com']
+- "Forward this to Sarah and Mark" → m365_forward_email with their emails
+- "Create a task for this" → asana_create_task with appropriate project
+- "Schedule a meeting with CFO next Tuesday 2pm" → m365_create_event
 - "What should I say to this?" → Provide recommendation, DON'T send
 
 **Email Analysis Format**:
