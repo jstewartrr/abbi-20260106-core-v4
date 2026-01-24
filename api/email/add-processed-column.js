@@ -1,4 +1,4 @@
-// One-time API to create EMAIL_BRIEFING_RESULTS table in Snowflake
+// Add PROCESSED column to existing EMAIL_BRIEFING_RESULTS table
 const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 async function mcpCall(tool, args = {}) {
@@ -33,44 +33,28 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    console.log('Creating EMAIL_BRIEFING_RESULTS table...');
+    console.log('Adding PROCESSED column to EMAIL_BRIEFING_RESULTS table...');
 
-    // Create table with 7-day retention and processed tracking
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS (
-        EMAIL_ID VARCHAR(500) PRIMARY KEY,
-        SUBJECT VARCHAR(1000),
-        FROM_NAME VARCHAR(500),
-        FROM_EMAIL VARCHAR(500),
-        PREVIEW VARCHAR(2000),
-        CATEGORY VARCHAR(100),
-        PRIORITY VARCHAR(50),
-        IS_TO_EMAIL BOOLEAN,
-        NEEDS_RESPONSE BOOLEAN,
-        FOLDER VARCHAR(500),
-        MAILBOX VARCHAR(200),
-        TIER INTEGER,
-        RECEIVED_AT TIMESTAMP,
-        PROCESSED_AT TIMESTAMP,
-        BRIEFING_DATE DATE,
-        PROCESSED BOOLEAN DEFAULT false
-      )
+    // Add PROCESSED column if it doesn't exist
+    const alterTableSQL = `
+      ALTER TABLE SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+      ADD COLUMN IF NOT EXISTS PROCESSED BOOLEAN DEFAULT false
     `;
 
     await mcpCall('sm_query_snowflake', {
-      sql: createTableSQL
+      sql: alterTableSQL
     });
 
-    console.log('✅ Table created successfully');
+    console.log('✅ PROCESSED column added successfully');
 
     return res.json({
       success: true,
-      message: 'EMAIL_BRIEFING_RESULTS table created',
-      note: 'Data will be kept for 7 days'
+      message: 'PROCESSED column added to EMAIL_BRIEFING_RESULTS table',
+      note: 'Emails will now track if they have been reviewed'
     });
 
   } catch (error) {
-    console.error('❌ Table creation error:', error);
+    console.error('❌ Column addition error:', error);
     return res.status(500).json({
       success: false,
       error: error.message
