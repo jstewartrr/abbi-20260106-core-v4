@@ -1,4 +1,4 @@
-// ABBI Chat Q&A - v9.3 with full M365/Asana/Calendar support (unified gateway restored)
+// ABBI Chat Q&A - v9.3.1 with full M365/Asana/Calendar support (unified gateway restored)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const UNIFIED_GATEWAY = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
