@@ -99,28 +99,33 @@ ${emailSummaries}
 IMPORTANT: You MUST return exactly ${batch.length} results - one for EACH email above.
 
 For each email, determine:
-1. priority: "urgent" (time-sensitive/critical), "high" (important), "medium" (normal), or "fyi" (informational only)
-2. category: Choose ONE from: "email-urgent", "email-investor", "email-portfolio-ceo-cfo", "email-portfolio-general", "email-deals", "email-internal-important", "email-internal-general", "email-external", "email-automated", "email-spam"
-3. is_to_email: true if John is in To: line, false if CC
-4. needs_response: true if requires John's action/response, false if just FYI
+1. priority: "urgent", "high", "medium", or "fyi"
+2. is_to_email: true if John is in To: line, false if CC
+3. needs_response: true if requires John's action/response, false if just FYI
+4. category: Assign based on priority + is_to_email + needs_response:
+   - If priority is "urgent" OR "high": category = "Urgent/Priority"
+   - If is_to_email=true AND needs_response=true: category = "TO - Need Response"
+   - If is_to_email=true AND needs_response=false: category = "TO - FYI"
+   - If is_to_email=false AND needs_response=true: category = "CC - Need Response"
+   - If is_to_email=false AND needs_response=false: category = "CC - FYI"
 
 Categorization rules:
-- Portfolio company CEOs/CFOs = "email-portfolio-ceo-cfo", priority: high
-- Investors, placement agents, banks, lenders = "email-investor", priority: high
-- Legal (Dechert, etc.) = "email-deals", priority: high
-- Urgent matters = "email-urgent", priority: urgent
-- Internal team emails TO John = "email-internal-important", priority: medium
-- CC emails = usually fyi priority unless specifically asks John to do something
-- Automated notifications/receipts/newsletters = "email-automated", priority: fyi
-- No-reply senders = "email-automated", priority: fyi
-- Spam/junk = "email-spam", priority: fyi
+- Portfolio company CEOs/CFOs = priority: high, needs_response: true
+- Investors, placement agents, banks, lenders = priority: high, needs_response: true
+- Legal (Dechert, etc.) = priority: high, needs_response: true
+- Urgent matters = priority: urgent, needs_response: true
+- Internal team emails TO John = priority: medium, evaluate needs_response
+- CC emails = usually needs_response: false unless specifically asks John to do something
+- Automated notifications/receipts/newsletters = priority: fyi, needs_response: false (mark as spam)
+- No-reply senders = priority: fyi, needs_response: false (mark as spam)
+- Spam/junk = priority: fyi, needs_response: false (mark as spam)
 
 Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no explanation):
 [
   {
     "id": "email_id_from_above",
     "priority": "high",
-    "category": "email-investor",
+    "category": "Urgent/Priority",
     "is_to_email": true,
     "needs_response": true
   },
@@ -182,11 +187,12 @@ async function cacheToSnowflake(emails) {
   console.log(`\n💾 Caching results to Snowflake...`);
   const today = new Date().toISOString().split('T')[0];
 
-  // Filter: Exclude spam and FYI-only emails
+  // Filter: Only cache emails that are urgent/high priority OR need response
+  // This excludes spam and pure FYI emails
   const important = emails.filter(e =>
-    e.category !== 'email-spam' &&
-    e.category !== 'email-automated' &&
-    (e.priority === 'urgent' || e.priority === 'high' || e.needs_response)
+    e.priority === 'urgent' ||
+    e.priority === 'high' ||
+    e.needs_response === true
   );
 
   console.log(`  Filtering: ${emails.length} total → ${important.length} important (excluding spam/automated)`);
