@@ -118,15 +118,19 @@ export default async function handler(req, res) {
       try {
         console.log('🔍 Checking Snowflake for cached results...');
         const today = new Date().toISOString().split('T')[0];
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
         const cacheQuery = `
           SELECT
             EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
             CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
-            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT
+            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, PROCESSED
           FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
-          WHERE BRIEFING_DATE = '${today}'
-          ORDER BY PROCESSED_AT DESC
+          WHERE BRIEFING_DATE >= '${sevenDaysAgoStr}'
+            AND (PROCESSED IS NULL OR PROCESSED = false)
+          ORDER BY RECEIVED_AT DESC
         `;
 
         const cachedResults = await snowflakeCall(cacheQuery);

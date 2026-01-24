@@ -48,8 +48,8 @@ async function fetchEmails(mailbox, folders) {
   const allEmails = [];
 
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   for (const folder of folders) {
     try {
@@ -62,10 +62,10 @@ async function fetchEmails(mailbox, folders) {
       });
 
       if (result.emails && result.emails.length > 0) {
-        // Filter to today + yesterday only
+        // Filter to last 7 days
         const recent = result.emails.filter(email => {
           const emailDate = new Date(email.date);
-          return emailDate >= yesterday;
+          return emailDate >= sevenDaysAgo;
         });
 
         console.log(`    ✓ ${recent.length} recent emails (${result.emails.length} total)`);
@@ -186,47 +186,69 @@ Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no e
 async function cacheToSnowflake(emails) {
   console.log(`\n💾 Caching results to Snowflake...`);
   const today = new Date().toISOString().split('T')[0];
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
   // Cache ALL emails - no filtering (user wants to see everything)
   const important = emails;
 
   console.log(`  Caching ALL ${emails.length} emails (no filtering)`);
 
-  // Clear today's cache
+  // Delete emails older than 7 days
   try {
     await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `DELETE FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE BRIEFING_DATE = '${today}'`
+      sql: `DELETE FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE BRIEFING_DATE < '${sevenDaysAgoStr}'`
     });
-    console.log(`  ✓ Cleared old cache for ${today}`);
+    console.log(`  ✓ Cleared emails older than ${sevenDaysAgoStr}`);
   } catch (error) {
     console.error(`  ✗ Cache clear error:`, error.message);
   }
 
-  // Insert important emails
+  // Insert/Update emails (MERGE to avoid overwriting processed emails)
   let cached = 0;
   for (const email of important) {
     try {
+      // Use MERGE to update if exists, insert if not
+      // IMPORTANT: Don't overwrite PROCESSED flag if email already exists and was processed
       const sql = `
-        INSERT INTO SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS (
-          EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
-          CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
-          FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, BRIEFING_DATE
-        ) VALUES (
-          '${email.id.replace(/'/g, "''")}',
-          '${(email.subject || '').replace(/'/g, "''")}',
-          '${(email.from || '').replace(/'/g, "''")}',
-          '${(email.from_email || email.from || '').replace(/'/g, "''")}',
-          '${((email.preview || '').substring(0, 500)).replace(/'/g, "''")}',
-          '${email.category || 'Uncategorized'}',
-          '${email.priority || 'medium'}',
-          ${email.is_to_email ? 'true' : 'false'},
-          ${email.needs_response ? 'true' : 'false'},
-          '${(email.folder || 'Inbox').replace(/'/g, "''")}',
-          'jstewart@middleground.com',
-          '${email.date || new Date().toISOString()}',
-          '${new Date().toISOString()}',
-          '${today}'
-        )
+        MERGE INTO SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS AS target
+        USING (SELECT
+          '${email.id.replace(/'/g, "''")}' AS EMAIL_ID,
+          '${(email.subject || '').replace(/'/g, "''")}' AS SUBJECT,
+          '${(email.from || '').replace(/'/g, "''")}' AS FROM_NAME,
+          '${(email.from_email || email.from || '').replace(/'/g, "''")}' AS FROM_EMAIL,
+          '${((email.preview || '').substring(0, 500)).replace(/'/g, "''")}' AS PREVIEW,
+          '${email.category || 'Uncategorized'}' AS CATEGORY,
+          '${email.priority || 'medium'}' AS PRIORITY,
+          ${email.is_to_email ? 'true' : 'false'} AS IS_TO_EMAIL,
+          ${email.needs_response ? 'true' : 'false'} AS NEEDS_RESPONSE,
+          '${(email.folder || 'Inbox').replace(/'/g, "''")}' AS FOLDER,
+          'jstewart@middleground.com' AS MAILBOX,
+          '${email.date || new Date().toISOString()}' AS RECEIVED_AT,
+          '${new Date().toISOString()}' AS PROCESSED_AT,
+          '${today}' AS BRIEFING_DATE
+        ) AS source
+        ON target.EMAIL_ID = source.EMAIL_ID
+        WHEN MATCHED THEN
+          UPDATE SET
+            SUBJECT = source.SUBJECT,
+            FROM_NAME = source.FROM_NAME,
+            FROM_EMAIL = source.FROM_EMAIL,
+            PREVIEW = source.PREVIEW,
+            CATEGORY = source.CATEGORY,
+            PRIORITY = source.PRIORITY,
+            IS_TO_EMAIL = source.IS_TO_EMAIL,
+            NEEDS_RESPONSE = source.NEEDS_RESPONSE,
+            FOLDER = source.FOLDER,
+            PROCESSED_AT = source.PROCESSED_AT
+        WHEN NOT MATCHED THEN
+          INSERT (EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
+                  CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
+                  FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, BRIEFING_DATE, PROCESSED)
+          VALUES (source.EMAIL_ID, source.SUBJECT, source.FROM_NAME, source.FROM_EMAIL, source.PREVIEW,
+                  source.CATEGORY, source.PRIORITY, source.IS_TO_EMAIL, source.NEEDS_RESPONSE,
+                  source.FOLDER, source.MAILBOX, source.RECEIVED_AT, source.PROCESSED_AT, source.BRIEFING_DATE, false)
       `;
 
       await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
@@ -236,7 +258,7 @@ async function cacheToSnowflake(emails) {
     }
   }
 
-  console.log(`  ✓ Cached ${cached}/${important.length} emails to Snowflake`);
+  console.log(`  ✓ Cached/Updated ${cached}/${important.length} emails to Snowflake`);
   return cached;
 }
 

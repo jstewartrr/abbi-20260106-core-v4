@@ -1301,32 +1301,44 @@
                     console.log(`✓ Email ${emailId} marked as read for ${mailbox}`);
                 }
 
-                // REMOVE EMAIL FROM DASHBOARD after processing
-                if (window.allBriefingEmails) {
-                    const emailIndex = window.allBriefingEmails.findIndex(e => e.id === emailId);
-                    if (emailIndex !== -1) {
-                        console.log(`🗑️ Removing processed email ${emailId} from dashboard`);
-                        window.allBriefingEmails.splice(emailIndex, 1);
+                // MARK EMAIL AS PROCESSED in Snowflake cache
+                try {
+                    await fetch('/api/email/mark-processed', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email_id: emailId })
+                    });
+                    console.log(`✓ Email ${emailId} marked as processed in cache`);
 
-                        // Update sidebar counts and re-render email list
-                        updateSidebarCounts();
-                        renderEmailList();
+                    // Remove from local memory and update UI
+                    if (window.allBriefingEmails) {
+                        const emailIndex = window.allBriefingEmails.findIndex(e => e.id === emailId);
+                        if (emailIndex !== -1) {
+                            console.log(`🗑️ Removing processed email ${emailId} from dashboard view`);
+                            window.allBriefingEmails.splice(emailIndex, 1);
 
-                        // If this was the expanded email, move to next or close
-                        if (expandedEmailId === emailId) {
-                            if (window.allBriefingEmails.length > 0) {
-                                // Move to next email (or first if we were at the end)
-                                const nextEmail = window.allBriefingEmails[emailIndex] || window.allBriefingEmails[0];
-                                expandedEmailId = nextEmail.id;
-                                renderExpandedEmail();
-                                autoMarkEmailRead(expandedEmailId, currentView);
-                            } else {
-                                // No more emails - return to briefing view
-                                expandedEmailId = null;
-                                switchView('daily-briefing');
+                            // Update sidebar counts and re-render email list
+                            updateSidebarCounts();
+                            renderEmailList();
+
+                            // If this was the expanded email, move to next or close
+                            if (expandedEmailId === emailId) {
+                                if (window.allBriefingEmails.length > 0) {
+                                    // Move to next email (or first if we were at the end)
+                                    const nextEmail = window.allBriefingEmails[emailIndex] || window.allBriefingEmails[0];
+                                    expandedEmailId = nextEmail.id;
+                                    renderExpandedEmail();
+                                    autoMarkEmailRead(expandedEmailId, currentView);
+                                } else {
+                                    // No more emails - return to briefing view
+                                    expandedEmailId = null;
+                                    switchView('daily-briefing');
+                                }
                             }
                         }
                     }
+                } catch (markError) {
+                    console.error('Error marking email as processed:', markError);
                 }
             } catch (error) {
                 console.error('Error auto-marking email as read:', error);
