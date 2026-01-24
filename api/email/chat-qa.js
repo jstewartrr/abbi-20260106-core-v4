@@ -115,7 +115,45 @@ User Question: ${question}`;
 
     // Define all tools for ABBI - Email, Calendar, Asana
     const tools = [
-      // === EMAIL TOOLS ===
+      // === EMAIL READING TOOLS ===
+      {
+        name: 'm365_read_emails',
+        description: 'List emails from a specific folder (inbox, sent items, etc.). Returns recent emails with preview.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            folder: { type: 'string', description: 'Folder name (e.g., "inbox", "sent items", "Important", "Deals")' },
+            unread_only: { type: 'boolean', description: 'Only show unread emails (default: false)' },
+            top: { type: 'number', description: 'Max emails to return (default: 20, max: 100)' }
+          },
+          required: ['folder']
+        }
+      },
+      {
+        name: 'm365_search_emails',
+        description: 'Search emails across all folders using keywords, sender, subject, etc.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Search query (keywords, "from:email", "subject:text", etc.)' },
+            folder: { type: 'string', description: 'Optional folder to search in (default: search all folders)' },
+            top: { type: 'number', description: 'Max results to return (default: 20)' }
+          },
+          required: ['query']
+        }
+      },
+      {
+        name: 'm365_get_email',
+        description: 'Get full details of a specific email by ID (including complete body)',
+        input_schema: {
+          type: 'object',
+          properties: {
+            message_id: { type: 'string', description: 'Email message ID' }
+          },
+          required: ['message_id']
+        }
+      },
+      // === EMAIL SENDING TOOLS ===
       {
         name: 'm365_send_email',
         description: 'Send a new email from John Stewart\'s account (jstewart@middleground.com)',
@@ -287,7 +325,12 @@ Additional context available:
 
 === TOOLS YOU HAVE ===
 
-EMAIL MANAGEMENT:
+EMAIL READING:
+- m365_read_emails: List emails from any folder (inbox, sent items, Important, Deals, etc.)
+- m365_search_emails: Search emails by keywords, sender, subject across all folders
+- m365_get_email: Get full email details including complete body by message ID
+
+EMAIL ACTIONS:
 - m365_send_email: Send new email (to, cc, subject, body)
 - m365_reply_email: Reply AND add CC/To recipients (message_id, body, cc, to, reply_all)
 - m365_forward_email: Forward email (message_id, to, comment)
@@ -323,6 +366,10 @@ John's Constants:
 m365_reply_email now supports adding CC AND To recipients!
 
 Examples:
+- "Check my sent folder" → m365_read_emails with folder: "sent items"
+- "Did my email to Sarah send?" → m365_search_emails for emails to Sarah in sent items
+- "Show me recent emails from the CEO" → m365_search_emails with query: "from:ceo@example.com"
+- "List emails in the Deals folder" → m365_read_emails with folder: "Deals"
 - "Reply saying I'll follow up tomorrow" → Draft reply, call m365_reply_email, report success
 - "Reply and CC Sarah and Mark" → m365_reply_email with cc: ['sarah@example.com', 'mark@example.com']
 - "Reply all and add john@example.com as CC" → m365_reply_email with reply_all: true, cc: ['john@example.com']
@@ -406,7 +453,7 @@ Be direct, concise, professional. You're an executor, not just an advisor.`
             max_tokens: 2000,
             messages: messages,
             tools: tools,
-            system: 'You are ABBI, John Stewart\'s AI executive assistant at Middleground Capital.\n\nCAPABILITIES:\n- Analyze emails and provide recommendations  \n- Draft email responses\n- **SEND emails directly** using m365_send_email (new emails) or m365_reply_email (replies)\n- Answer questions about emails and provide context\n- Remember previous conversation history\n\nAVAILABLE CONTEXT:\n- When viewing an email, you receive the **Message ID** in the EMAIL CONTEXT section\n- This Message ID is what you need for the m365_reply_email tool (as the message_id parameter)\n- You also have from, to, subject, and body of the email\n\nWHEN USER ASKS YOU TO TAKE ACTION:\n- If user says "reply and say X" → Draft the reply with content X and USE THE TOOL to send it immediately\n- If user asks "draft a reply" → Show the draft WITHOUT sending\n- Always USE THE TOOLS when user asks you to send/reply\n- For replies: Use m365_reply_email with message_id from EMAIL CONTEXT\n- For new emails: Use m365_send_email with recipient addresses\n- Report tool results clearly: "✓ Email sent successfully" or "❌ Failed to send: [error]"\n\n**IMPORTANT**: You CAN and SHOULD actually send emails when asked. Don\'t just SAY you sent it - actually use the tool.\n\nRESPONSE FORMAT:\nFor email analysis:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe direct, concise, and professional.'
+            system: 'You are ABBI, John Stewart\'s AI executive assistant at Middleground Capital.\n\nCAPABILITIES:\n- **READ emails** using m365_read_emails (list from folders), m365_search_emails (search), m365_get_email (get full email)\n- Analyze emails and provide recommendations  \n- Draft email responses\n- **SEND emails directly** using m365_send_email (new emails) or m365_reply_email (replies)\n- Answer questions about emails and provide context\n- Remember previous conversation history\n\nAVAILABLE TOOLS:\n- m365_read_emails: List emails from folders like "inbox", "sent items", "Important", "Deals"\n- m365_search_emails: Search emails by keywords or sender\n- m365_get_email: Get full email by message ID\n- m365_send_email: Send new email\n- m365_reply_email: Reply to email (needs message_id from EMAIL CONTEXT)\n- m365_forward_email: Forward email\n\nAVAILABLE CONTEXT:\n- When viewing an email, you receive the **Message ID** in the EMAIL CONTEXT section\n- This Message ID is what you need for the m365_reply_email tool (as the message_id parameter)\n- You also have from, to, subject, and body of the email\n\nWHEN USER ASKS YOU TO TAKE ACTION:\n- If user says "reply and say X" → Draft the reply with content X and USE THE TOOL to send it immediately\n- If user asks "draft a reply" → Show the draft WITHOUT sending\n- If user asks "check sent folder" → Use m365_read_emails with folder: "sent items"\n- If user asks "did my email send?" → Use m365_search_emails or m365_read_emails to verify\n- Always USE THE TOOLS when user asks you to send/reply/search/check folders\n- For replies: Use m365_reply_email with message_id from EMAIL CONTEXT\n- For new emails: Use m365_send_email with recipient addresses\n- Report tool results clearly: "✓ Email sent successfully" or "❌ Failed to send: [error]"\n\n**IMPORTANT**: You CAN and SHOULD actually send emails when asked. Don\'t just SAY you sent it - actually use the tool. You can NOW also READ and SEARCH emails.\n\nRESPONSE FORMAT:\nFor email analysis:\n1) Recommended response - Whether to reply and suggested tone/content\n2) Key action items - Specific tasks to complete\n3) Deadlines & time-sensitive matters - Any urgent items\n\nBe direct, concise, and professional.'
           })
         });
 
