@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
     // Read recent unread emails from inbox only (fast)
     console.log('📧 Fetching recent unread emails...');
-    const emails = await mcpCall(M365_GATEWAY, 'm365_read_emails', {
+    const emails = await mcpCall(M365_GATEWAY, 'read_emails', {
       folder: 'inbox',
       unread_only: true,
       top: 50
