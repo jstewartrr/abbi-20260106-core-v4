@@ -1264,17 +1264,14 @@
 
         // Auto-mark email as read following v6.2 protocol
         async function autoMarkEmailRead(emailId, viewOrMailbox, explicitMailbox = null) {
-            // High-priority categories that should be flagged when viewed
-            const highPriorityCategories = [
-                'email-investor',
-                'email-portfolio-ceo-cfo',
-                'email-urgent'
-            ];
+            // DISABLED: Auto-flagging removed - user will manually flag if needed
+            // High-priority categories no longer auto-flag emails
+            const highPriorityCategories = [];
 
             // Determine mailbox: use explicitMailbox if provided, otherwise check if viewOrMailbox looks like an email
             const mailbox = explicitMailbox || (viewOrMailbox?.includes('@') ? viewOrMailbox : 'jstewart@middleground.com');
 
-            const isHighPriority = highPriorityCategories.includes(viewOrMailbox);
+            const isHighPriority = false; // DISABLED: No auto-flagging
 
             try {
                 // Always mark as read
