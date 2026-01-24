@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.3 - Full capabilities restored: M365 CC/To support + Unified Gateway (Asana/Calendar) back online -->
-<!-- Force refresh: 2026-01-23T21:42:00Z -->
+<!-- ABBI Executive Dashboard v9.4.2 - Added manual email refresh button + Fixed triage system -->
+<!-- Force refresh: 2026-01-24T21:20:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v9.3.1 | ABBI</title>
+    <title>Executive Dashboard v9.4.2 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -37,6 +37,11 @@
         .nav-status{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:rgba(34,197,94,.1);color:var(--green)}
         .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
         .nav-logout{background:0;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer}
+        .nav-refresh-btn{background:linear-gradient(135deg,var(--purple),var(--blue));border:none;border-radius:6px;padding:6px 12px;color:#fff;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.75rem;transition:all .2s}
+        .nav-refresh-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(139,92,246,.3)}
+        .nav-refresh-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .nav-refresh-btn .spinner{animation:spin 1s linear infinite;display:inline-block}
+        @keyframes spin{to{transform:rotate(360deg)}}
         
         /* Main */
         .main{display:none;padding:70px 20px 20px;max-width:1800px;margin:0 auto;overflow-x:auto}
@@ -235,10 +240,14 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.3.1</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.4.2</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
+            <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
+                <span id="refresh-icon">🔄</span>
+                <span id="refresh-text">Refresh Emails</span>
+            </button>
             <button class="nav-logout" onclick="logout()">Logout</button>
         </div>
     </nav>
@@ -981,6 +990,65 @@
         function logout() {
             localStorage.removeItem('abbi_auth');
             location.reload();
+        }
+
+        // Manual Email Refresh - Triggers triage webhook
+        async function manualRefreshEmails() {
+            const btn = document.getElementById('refresh-emails-btn');
+            const icon = document.getElementById('refresh-icon');
+            const text = document.getElementById('refresh-text');
+
+            // Disable button and show loading state
+            btn.disabled = true;
+            icon.innerHTML = '<span class="spinner">⟳</span>';
+            text.textContent = 'Triaging...';
+
+            try {
+                console.log('🔄 Manual refresh triggered - calling triage webhook...');
+                const startTime = Date.now();
+
+                // Call triage webhook
+                const response = await fetch('/api/email/triage-webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer dev-secret-12345'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+                console.log('✅ Triage complete:', data);
+
+                // Show success message
+                icon.textContent = '✅';
+                text.textContent = `${data.emails_cached} emails cached`;
+
+                // Wait 2 seconds then reload the page to show new emails
+                setTimeout(() => {
+                    console.log('🔄 Reloading dashboard to show updated emails...');
+                    location.reload();
+                }, 2000);
+
+            } catch (error) {
+                console.error('❌ Manual refresh error:', error);
+
+                // Show error message
+                icon.textContent = '❌';
+                text.textContent = 'Refresh failed';
+
+                // Re-enable button after 3 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    icon.textContent = '🔄';
+                    text.textContent = 'Refresh Emails';
+                }, 3000);
+            }
         }
 
         // Time filter
