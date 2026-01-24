@@ -266,10 +266,19 @@ export default async function handler(req, res) {
 
     const startTime = Date.now();
 
-    // Mailboxes and folders - fetch from BOTH mailboxes
+    // Mailboxes and folders - fetch from BOTH mailboxes and ALL key folders
     const mailboxFolders = {
-      'jstewart@middleground.com': ['inbox'],
-      'john@middleground.com': ['inbox']
+      'jstewart@middleground.com': [
+        'inbox',
+        'Important',
+        'Portfolio Companies',
+        'Deals',
+        'Investors'
+      ],
+      'john@middleground.com': [
+        'inbox',
+        'Important'
+      ]
     };
 
     // Step 1: Fetch emails from BOTH mailboxes
