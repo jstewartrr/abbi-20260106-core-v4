@@ -41,7 +41,13 @@ export default async function handler(req, res) {
   const emailPromises = [
     mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
       sql: `SELECT EMAIL_ID as id, SUBJECT as subject, FROM_NAME as from, CATEGORY as category, PRIORITY as priority, RECEIVED_AT as date FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
-    }).then(result => ({ emails: result.data || [] })).catch(() => ({ emails: [] }))
+    }).then(result => {
+      console.log('[Executive API] Email query result:', result);
+      return { emails: result.data || [] };
+    }).catch(err => {
+      console.error('[Executive API] Email query error:', err);
+      return { emails: [] };
+    })
   ];
 
   // Fetch tasks from Asana triage cache in Snowflake
@@ -90,9 +96,14 @@ export default async function handler(req, res) {
   const allEmails = [];
   const emailStartIndex = 1;
   const emailEndIndex = emailStartIndex + 1;
+  console.log('[Executive API] Email result status:', results[emailStartIndex]?.status);
+  console.log('[Executive API] Email result value:', results[emailStartIndex]?.value);
   if (results[emailStartIndex]?.status === 'fulfilled') {
     const emails = results[emailStartIndex].value?.emails || [];
+    console.log('[Executive API] Extracted emails count:', emails.length);
     allEmails.push(...emails);
+  } else {
+    console.error('[Executive API] Email query was rejected:', results[emailStartIndex]?.reason);
   }
 
   // Get tasks from triage cache (single query)
