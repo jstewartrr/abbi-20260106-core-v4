@@ -57,7 +57,7 @@ async function fetchEmails(mailbox, folders) {
       const result = await mcpCall(M365_GATEWAY, 'read_emails', {
         user: mailbox,
         folder: folder,
-        unread_only: false,
+        unread_only: true,  // ONLY unread emails
         top: 100
       });
 
@@ -513,13 +513,13 @@ export default async function handler(req, res) {
 
     const realEmails = emailsNeedingAnalysis.filter(e => {
       const fromEmail = (e.from_email || e.from || '').toLowerCase();
-      const subject = e.subject || '';
+      const subject = (e.subject || '').toLowerCase();
 
       // Skip if from junk domain
       if (junkDomains.some(d => fromEmail.includes(d))) return false;
 
-      // Skip if subject contains junk keywords
-      if (junkKeywords.some(k => subject.includes(k))) return false;
+      // Skip if subject contains junk keywords (case-insensitive)
+      if (junkKeywords.some(k => subject.includes(k.toLowerCase()))) return false;
 
       return true;
     });
