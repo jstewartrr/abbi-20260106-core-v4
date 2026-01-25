@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.0.6 - DOM Update Debugging -->
-<!-- Force refresh: 2026-01-25T09:15:00Z -->
+<!-- ABBI Executive Dashboard v10.0.7 - Fixed Category Name Mismatch -->
+<!-- Force refresh: 2026-01-25T09:30:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v10.0.6 | ABBI</title>
+    <title>Executive Dashboard v10.0.7 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.6</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.7</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -807,6 +807,27 @@
             document.getElementById('email-cc-fyi').textContent = countByCategory('CC: FYI') || 0;
 
             console.log('✅ All email metrics updated');
+
+            // VERIFY the updates actually stuck
+            setTimeout(() => {
+                const debugContent = document.getElementById('debug-content');
+                if (debugContent) {
+                    const verifyDiv = document.createElement('div');
+                    verifyDiv.style.marginTop = '8px';
+                    verifyDiv.style.borderTop = '1px solid #8b5cf6';
+                    verifyDiv.style.paddingTop = '8px';
+                    verifyDiv.innerHTML = `<div style="color:#f59e0b">⚠️ AFTER UPDATE:</div>`;
+
+                    const elementsToVerify = ['email-to-fyi', 'email-unprocessed', 'email-urgent-priority'];
+                    elementsToVerify.forEach(id => {
+                        const elem = document.getElementById(id);
+                        const value = elem ? elem.textContent : 'N/A';
+                        verifyDiv.innerHTML += `<div style="margin-left:16px">${id}: "${value}"</div>`;
+                    });
+
+                    debugContent.appendChild(verifyDiv);
+                }
+            }, 100);
 
             // Update Asana task metrics
             const countByTaskCategory = (cat) => (liveData.tasks || []).filter(t => t.category === cat).length;
@@ -3374,10 +3395,16 @@
                 };
 
                 data.emails.forEach(email => {
-                    if (emailsByCategory[email.category]) {
-                        emailsByCategory[email.category].push(email);
+                    // Normalize category format: "TO - FYI" -> "To: FYI"
+                    let category = email.category || '';
+                    if (category.includes(' - ')) {
+                        category = category.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
+                    }
+
+                    if (emailsByCategory[category]) {
+                        emailsByCategory[category].push(email);
                     } else {
-                        console.warn('⚠️ Email has unknown category:', email.category);
+                        console.warn('⚠️ Email has unknown category:', email.category, '(normalized:', category, ')');
                     }
                 });
 
