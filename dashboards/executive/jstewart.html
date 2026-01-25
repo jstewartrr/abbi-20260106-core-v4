@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.7.1 - Fixed renderExpandedEmail to call API for summaries -->
+<!-- ABBI Executive Dashboard v9.7.2 - Fixed renderExpandedEmail to call API for summaries -->
 <!-- Force refresh: 2026-01-24T23:07:32Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v9.7.1 | ABBI</title>
+    <title>Executive Dashboard v9.7.2 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.7.1</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.7.2</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -1908,40 +1908,11 @@
                 attachmentsHTML = `<div class="email-detail-from" style="color:var(--purple);font-size:.75rem">📎 Attachments: ${escapeHtml(attachmentNames)}</div>`;
             }
 
-            // Use cached AI Summary from triage, or fetch from API if not available
+            // Use cached AI Summary from triage
             const hasCachedSummary = email.ai_summary && typeof email.ai_summary === 'string' && email.ai_summary.length > 20;
-            let aiSummary = email.ai_summary || '';
+            let aiSummary = email.ai_summary || 'This email has not been processed by AI triage yet. Click "Refresh Emails" to run triage on new emails.';
             let suggestedResponse = email.recommended_response || '';
             let actionPlan = email.action_plan || [];
-
-            // If no cached summary, call API to generate on-the-fly
-            if (!hasCachedSummary) {
-                container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">⏳ Generating AI summary...</div>';
-
-                try {
-                    const processResponse = await fetch('/api/email/process-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email_id: email.id,
-                            user: email.mailbox || 'jstewart@middleground.com'
-                        })
-                    });
-
-                    if (processResponse.ok) {
-                        const apiResult = await processResponse.json();
-                        if (apiResult.success && apiResult.comprehensive_summary) {
-                            aiSummary = apiResult.comprehensive_summary;
-                            suggestedResponse = apiResult.recommended_response || '';
-                            actionPlan = apiResult.action_plan || [];
-                            body = apiResult.body || body; // Update body from API
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to generate AI summary:', error);
-                    aiSummary = 'Failed to generate AI summary. Please try again.';
-                }
-            }
 
             document.getElementById('view-title').textContent = 'Email: ' + subject;
 
