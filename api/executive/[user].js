@@ -8,8 +8,9 @@ const USERS = {
     emailAccounts: ['jstewart@middleground.com', 'john@middleground.com'],
     asanaGid: '373563475019846',
     asanaProjects: {
-      mpDashboard: '1209103059237595',
-      weeklyItems: '1209022810695498'
+      mpDashboard: '1204554210439476',    // MP Project Dashboard
+      weeklyItems: '1212197943409021',    // John's Weekly Items
+      dailyBriefing: '1209783905568586'   // MP Daily Briefing
     }
   },
   'john.claude': { name: 'John Claude', email: 'John.Claude@middleground.com' }
@@ -43,17 +44,11 @@ export default async function handler(req, res) {
       )
     : [mcpCall(GATEWAY_URL, 'm365_read_emails', { user: userConfig.email, unread_only: true, top: 10 })];
 
-  // Fetch tasks from specific Asana projects (assigned to user AND assigned by user)
-  const asanaPromises = userConfig.asanaProjects
+  // Fetch tasks assigned to this user across all projects
+  const asanaPromises = userConfig.asanaGid
     ? [
-        // Tasks assigned TO jstewart in MP Project Dashboard
-        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, assignee: userConfig.asanaGid }),
-        // Tasks assigned TO jstewart in Weekly Items
-        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, assignee: userConfig.asanaGid }),
-        // All incomplete tasks in MP Dashboard (to find ones assigned BY jstewart)
-        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, completed: false }),
-        // All incomplete tasks in Weekly Items (to find ones assigned BY jstewart)
-        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, completed: false })
+        // All incomplete tasks assigned TO this user
+        mcpCall(GATEWAY_URL, 'asana_search_tasks', { assignee: userConfig.asanaGid, completed: false })
       ]
     : [Promise.resolve({ tasks: [] })];
 
@@ -79,21 +74,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // Merge Asana tasks from all queries
+  // Merge Asana tasks from search query
   const allTasks = [];
   const asanaStartIndex = emailEndIndex;
-  const asanaEndIndex = asanaStartIndex + (userConfig.asanaProjects ? 4 : 1);
-  const taskIds = new Set(); // Deduplicate tasks
-  for (let i = asanaStartIndex; i < asanaEndIndex; i++) {
-    if (results[i]?.status === 'fulfilled') {
-      const tasks = results[i].value?.tasks || results[i].value?.data || [];
-      tasks.forEach(task => {
-        if (task.gid && !taskIds.has(task.gid)) {
-          taskIds.add(task.gid);
-          allTasks.push(task);
-        }
-      });
-    }
+  const asanaEndIndex = asanaStartIndex + (userConfig.asanaGid ? 1 : 1);
+  if (results[asanaStartIndex]?.status === 'fulfilled') {
+    const tasks = results[asanaStartIndex].value?.tasks || results[asanaStartIndex].value?.data || [];
+    allTasks.push(...tasks);
   }
 
   // Get Hive Mind activity
