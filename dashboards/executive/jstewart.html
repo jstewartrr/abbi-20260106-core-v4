@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.0.7 - Fixed Category Name Mismatch -->
-<!-- Force refresh: 2026-01-25T09:30:00Z -->
+<!-- ABBI Executive Dashboard v10.0.8 - Fixed Email Category Filtering -->
+<!-- Force refresh: 2026-01-25T09:45:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v10.0.7 | ABBI</title>
+    <title>Executive Dashboard v10.0.8 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.7</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.8</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -1576,16 +1576,37 @@
 
         // Filter briefing emails by category and display
         function filterBriefingByCategory(category) {
-            if (!window.allBriefingEmails) return;
+            // Use allBriefingEmails if available, otherwise fall back to liveData.emails
+            const emailSource = window.allBriefingEmails || liveData.emails || [];
+            if (emailSource.length === 0) {
+                console.warn('No emails available to filter');
+                return;
+            }
+
+            console.log('📧 Filtering', emailSource.length, 'emails for category:', category);
 
             window.currentBriefingCategory = category;
             const container = document.getElementById('content');
             if (!container) return;
 
-            // Filter emails by category
-            const filteredEmails = window.allBriefingEmails.filter(email => {
-                return email.category === category;
+            // Filter emails by category - check both normalized and original categories
+            const filteredEmails = emailSource.filter(email => {
+                // Check if email.categories array includes the category (from liveData format)
+                if (email.categories && Array.isArray(email.categories)) {
+                    return email.categories.includes(category);
+                }
+                // Check direct category field (from daily briefing format)
+                if (email.category === category) return true;
+
+                // Normalize and check
+                let normalizedCategory = email.category || '';
+                if (normalizedCategory.includes(' - ')) {
+                    normalizedCategory = normalizedCategory.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
+                }
+                return normalizedCategory === category;
             });
+
+            console.log('✅ Filtered to', filteredEmails.length, 'emails');
 
             // Render filtered list
             let html = '<div style="padding:20px">';
