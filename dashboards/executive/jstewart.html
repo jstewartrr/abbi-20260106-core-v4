@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.4.15 - 7-day retention + processed tracking + auto-suggest fix -->
+<!-- ABBI Executive Dashboard v9.6.0 - Fallback to on-the-fly summary generation for unprocessed emails -->
 <!-- Force refresh: 2026-01-24T23:07:32Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v9.4.15 | ABBI</title>
+    <title>Executive Dashboard v9.6.0 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.4.15</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.6.0</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -1908,11 +1908,64 @@
                 attachmentsHTML = `<div class="email-detail-from" style="color:var(--purple);font-size:.75rem">📎 Attachments: ${escapeHtml(attachmentNames)}</div>`;
             }
 
-            // Generate AI Summary (placeholder - will be replaced with real AI)
-            const aiSummary = generateAISummary(email);
-            const suggestedResponse = generateSuggestedResponse(email);
+            // Use cached AI Summary from triage, or generate placeholder if not available
+            const hasCachedSummary = email.ai_summary && typeof email.ai_summary === 'string' && email.ai_summary.length > 20;
+            const aiSummary = hasCachedSummary ? email.ai_summary : generateAISummary(email);
+            const suggestedResponse = email.recommended_response || generateSuggestedResponse(email);
 
             document.getElementById('view-title').textContent = 'Email: ' + subject;
+
+            // Build AI Analysis section based on format
+            let aiAnalysisHTML = '';
+            if (hasCachedSummary) {
+                // Use new cached AI summary format (string)
+                aiAnalysisHTML = `
+                    <div class="ai-analysis-card">
+                        <div class="email-card-title">AI ANALYSIS</div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Summary</div>
+                            <div class="ai-section-content" style="white-space:pre-wrap">${escapeHtml(aiSummary)}</div>
+                        </div>
+                        ${email.action_plan && email.action_plan.length > 0 ? `
+                            <div class="ai-section">
+                                <div class="ai-section-label">Action Items</div>
+                                <div class="ai-section-content">
+                                    <ul style="margin:0;padding-left:20px">
+                                        ${email.action_plan.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                // Use old placeholder format (object)
+                aiAnalysisHTML = `
+                    <div class="ai-analysis-card">
+                        <div class="email-card-title">AI ANALYSIS</div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Topic</div>
+                            <div class="ai-section-content" id="topic-${email.id}">${aiSummary.topic}</div>
+                        </div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Summary</div>
+                            <div class="ai-section-content" id="summary-${email.id}">${aiSummary.summary}</div>
+                        </div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Requesting</div>
+                            <div class="ai-section-content" id="requesting-${email.id}">${aiSummary.request}</div>
+                        </div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Action Items</div>
+                            <div class="ai-section-content" id="actionItems-${email.id}">${aiSummary.actionItems}</div>
+                        </div>
+                        <div class="ai-section">
+                            <div class="ai-section-label">Your Action</div>
+                            <div class="ai-section-content" id="yourAction-${email.id}">${aiSummary.yourAction}</div>
+                        </div>
+                    </div>
+                `;
+            }
 
             container.innerHTML = `
                 <div class="email-expanded-view">
@@ -1941,35 +1994,8 @@
                         <div class="email-body-content">${escapeHtml(body)}</div>
                     </div>
 
-                    <!-- Card 2: AI Analysis -->
-                    <div class="ai-analysis-card">
-                        <div class="email-card-title">AI ANALYSIS</div>
-
-                        <div class="ai-section">
-                            <div class="ai-section-label">Topic</div>
-                            <div class="ai-section-content" id="topic-${email.id}">${aiSummary.topic}</div>
-                        </div>
-
-                        <div class="ai-section">
-                            <div class="ai-section-label">Summary</div>
-                            <div class="ai-section-content" id="summary-${email.id}">${aiSummary.summary}</div>
-                        </div>
-
-                        <div class="ai-section">
-                            <div class="ai-section-label">Requesting</div>
-                            <div class="ai-section-content" id="requesting-${email.id}">${aiSummary.request}</div>
-                        </div>
-
-                        <div class="ai-section">
-                            <div class="ai-section-label">Action Items</div>
-                            <div class="ai-section-content" id="actionItems-${email.id}">${aiSummary.actionItems}</div>
-                        </div>
-
-                        <div class="ai-section">
-                            <div class="ai-section-label">Your Action</div>
-                            <div class="ai-section-content" id="yourAction-${email.id}">${aiSummary.yourAction}</div>
-                        </div>
-                    </div>
+                    <!-- Card 2: AI Analysis (dynamic based on cached data availability) -->
+                    ${aiAnalysisHTML}
 
                     <!-- Card 3: AI Recommended Action Plan -->
                     <div class="response-card" style="border:2px solid var(--purple)">
@@ -3208,7 +3234,7 @@
                 // Preload cache for instant email navigation
                 window.emailPreloadCache = {};
 
-                // Preload next email in background
+                // Preload next email in background (now uses cached triage data)
                 async function preloadNextEmail(emailId) {
                     // Don't preload if already cached
                     if (window.emailPreloadCache[emailId]) {
@@ -3219,26 +3245,48 @@
                     const email = window.allBriefingEmails.find(e => e.id === emailId);
                     if (!email) return;
 
-                    const mailbox = email.mailbox || 'jstewart@middleground.com';
-                    console.log('⏩ Preloading next email:', emailId);
+                    // Check if email has cached AI summary
+                    const hasCachedSummary = email.ai_summary && email.ai_summary.length > 20;
 
-                    try {
-                        const res = await fetch('/api/email/process-email', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                email_id: emailId,
-                                user: mailbox
-                            })
-                        });
+                    if (hasCachedSummary) {
+                        console.log('⏩ Email already cached during triage:', emailId);
 
-                        if (res.ok) {
-                            const analysis = await res.json();
-                            window.emailPreloadCache[emailId] = analysis;
-                            console.log('✅ Preloaded email:', emailId);
+                        // Build analysis object from cached triage data
+                        const analysis = {
+                            success: true,
+                            subject: email.subject,
+                            from: email.from,
+                            to: email.mailbox || 'jstewart@middleground.com',
+                            received: email.received,
+                            body: email.full_body || email.preview || '',
+                            comprehensive_summary: email.ai_summary,
+                            action_plan: email.action_plan || [],
+                            recommended_response: email.recommended_response || ''
+                        };
+
+                        window.emailPreloadCache[emailId] = analysis;
+                        console.log('✅ Preloaded from triage cache:', emailId);
+                    } else {
+                        // No cached summary - fetch and generate on-the-fly
+                        console.log('⏩ Preloading via API (no cached summary):', emailId);
+                        try {
+                            const processResponse = await fetch('/api/email/process-email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    email_id: emailId,
+                                    mailbox: email.mailbox || 'jstewart@middleground.com'
+                                })
+                            });
+
+                            if (processResponse.ok) {
+                                const analysis = await processResponse.json();
+                                window.emailPreloadCache[emailId] = analysis;
+                                console.log('✅ Preloaded via API:', emailId);
+                            }
+                        } catch (error) {
+                            console.error('Failed to preload email:', error);
                         }
-                    } catch (error) {
-                        console.warn('Failed to preload email:', error.message);
                     }
                 }
 
@@ -3292,26 +3340,46 @@
                     }
 
                     try {
-                        // Fetch if not in cache
+                        // Build analysis from cached triage data if not in preload cache
                         if (!analysis) {
-                            const mailbox = email.mailbox || 'jstewart@middleground.com';
-                            console.log('Processing email:', emailId, 'for mailbox:', mailbox);
-                            const res = await fetch('/api/email/process-email', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    email_id: emailId,
-                                    user: mailbox
-                                })
-                            });
+                            // Check if email has cached AI summary
+                            const hasCachedSummary = email.ai_summary && email.ai_summary.length > 20;
 
-                            if (!res.ok) {
-                                throw new Error(`HTTP ${res.status}`);
+                            if (hasCachedSummary) {
+                                console.log('Building analysis from cached triage data:', emailId);
+                                analysis = {
+                                    success: true,
+                                    subject: email.subject,
+                                    from: email.from,
+                                    to: email.mailbox || 'jstewart@middleground.com',
+                                    received: email.received,
+                                    body: email.full_body || email.preview || '',
+                                    comprehensive_summary: email.ai_summary,
+                                    action_plan: email.action_plan || [],
+                                    recommended_response: email.recommended_response || ''
+                                };
+                                // Cache it for back navigation
+                                window.emailPreloadCache[emailId] = analysis;
+                            } else {
+                                // No cached summary - fetch and generate on-the-fly
+                                console.log('No cached summary, generating on-the-fly for:', emailId);
+                                const processResponse = await fetch('/api/email/process-email', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        email_id: emailId,
+                                        mailbox: email.mailbox || 'jstewart@middleground.com'
+                                    })
+                                });
+
+                                if (!processResponse.ok) {
+                                    throw new Error('Failed to process email');
+                                }
+
+                                analysis = await processResponse.json();
+                                // Cache it for back navigation
+                                window.emailPreloadCache[emailId] = analysis;
                             }
-
-                            analysis = await res.json();
-                            // Cache it for back navigation
-                            window.emailPreloadCache[emailId] = analysis;
                         }
 
                         // Find current email position for navigation
