@@ -40,7 +40,27 @@ export default async function handler(req, res) {
   // Fetch emails from triage cache in Snowflake (not directly from M365)
   const emailPromises = [
     mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `SELECT EMAIL_ID as "id", SUBJECT as "subject", FROM_NAME as "sender", CATEGORY as "category", PRIORITY as "priority", RECEIVED_AT as "date" FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
+      sql: `SELECT
+        EMAIL_ID as "id",
+        SUBJECT as "subject",
+        FROM_NAME as "sender",
+        FROM_EMAIL as "from_email",
+        CATEGORY as "category",
+        PRIORITY as "priority",
+        RECEIVED_AT as "date",
+        PREVIEW as "preview",
+        FULL_BODY as "full_body",
+        AI_SUMMARY as "ai_summary",
+        ACTION_PLAN as "action_plan",
+        RECOMMENDED_RESPONSE as "recommended_response",
+        IS_TO_EMAIL as "is_to_email",
+        NEEDS_RESPONSE as "needs_response",
+        FOLDER as "folder",
+        MAILBOX as "mailbox"
+      FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+      WHERE PROCESSED = false
+      ORDER BY RECEIVED_AT DESC
+      LIMIT 50`
     }).then(result => {
       console.log('[Executive API] Email query result:', result);
       return { emails: result.data || [] };
