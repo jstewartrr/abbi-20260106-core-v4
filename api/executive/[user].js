@@ -75,9 +75,13 @@ export default async function handler(req, res) {
   const emailEndIndex = emailStartIndex + 1;
   if (results[emailStartIndex]?.status === 'fulfilled') {
     const emails = results[emailStartIndex].value?.emails || [];
-    // Map sender to from for dashboard compatibility
+    // Map sender to from and normalize category format for dashboard compatibility
     emails.forEach(e => {
       if (e.sender && !e.from) e.from = e.sender;
+      // Convert "TO - FYI" to "To: FYI" format
+      if (e.category && e.category.includes(' - ')) {
+        e.category = e.category.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
+      }
     });
     allEmails.push(...emails);
   }
