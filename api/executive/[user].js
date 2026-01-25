@@ -101,8 +101,22 @@ export default async function handler(req, res) {
   if (results[emailStartIndex]?.status === 'fulfilled') {
     const emails = results[emailStartIndex].value?.emails || [];
     console.log('[Executive API] Extracted emails count:', emails.length);
-    // Map sender back to from for dashboard compatibility
-    const mappedEmails = emails.map(e => ({ ...e, from: e.sender || e.from }));
+
+    // Map cached emails to dashboard format
+    const mappedEmails = emails.map(e => {
+      // Convert category format: "TO - FYI" -> "To: FYI"
+      let dashboardCategory = e.category || '';
+      if (dashboardCategory.includes(' - ')) {
+        dashboardCategory = dashboardCategory.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
+      }
+
+      return {
+        ...e,
+        from: e.sender || e.from,
+        categories: ['Processed', dashboardCategory]  // Dashboard expects categories array
+      };
+    });
+
     allEmails.push(...mappedEmails);
   } else {
     console.error('[Executive API] Email query was rejected:', results[emailStartIndex]?.reason);
