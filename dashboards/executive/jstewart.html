@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.0.8 - Fixed Email Category Filtering -->
-<!-- Force refresh: 2026-01-25T09:45:00Z -->
+<!-- ABBI Executive Dashboard v9.9.0 - Restored Working Version -->
+<!-- Force refresh: 2026-01-25T10:00:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v10.0.8 | ABBI</title>
+    <title>Executive Dashboard v9.9.0 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.8</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v9.9.0</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -248,20 +248,10 @@
                 <span id="refresh-icon">🔄</span>
                 <span id="refresh-text">Refresh Emails</span>
             </button>
-            <button id="refresh-tasks-btn" class="nav-refresh-btn" onclick="manualRefreshTasks()" title="Manually trigger Asana task triage and refresh cache" style="margin-left:8px">
-                <span id="refresh-tasks-icon">📋</span>
-                <span id="refresh-tasks-text">Refresh Tasks</span>
-            </button>
             <button class="nav-logout" onclick="logout()">Logout</button>
         </div>
     </nav>
-
-    <!-- Debug Panel (temporary) -->
-    <div id="debug-panel" style="background:#1a1a2e;border:2px solid #8b5cf6;border-radius:8px;padding:16px;margin:16px;font-family:monospace;font-size:12px;color:#fff;display:none">
-        <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#8b5cf6">🔍 DEBUG INFO</div>
-        <div id="debug-content"></div>
-    </div>
-
+    
     <!-- Main Content -->
     <main class="main">
         <!-- Three Column Dashboard -->
@@ -302,32 +292,23 @@
                     </div>
                 </div>
 
-                <!-- ASANA TASKS Card -->
+                <!-- RECEIVED TASKS Card -->
                 <div class="metric-card" id="tasks-card">
                     <div class="metric-card-title" onclick="toggleMetricCard('tasks-card')">
-                        <span style="display:flex;align-items:center;gap:8px"><span class="collapse-icon">▼</span> ASANA TASKS</span>
+                        <span style="display:flex;align-items:center;gap:8px"><span class="collapse-icon">▼</span> RECEIVED TASKS</span>
                     </div>
                     <div class="metric-card-content">
-                    <div class="metric-row" data-view="task-my-recent" onclick="switchMetricView('task-my-recent')">
-                        <span class="metric-label">My Tasks - Recent Submissions</span>
-                        <span class="metric-value amber" id="task-my-recent">0</span>
+                    <div class="metric-row" data-view="tasks-received" onclick="switchMetricView('tasks-received')">
+                        <span class="metric-label">Received Today</span>
+                        <span class="metric-value" id="tasks-received-today">0</span>
                     </div>
-                    <div class="metric-row" data-view="task-my-weekly" onclick="switchMetricView('task-my-weekly')">
-                        <span class="metric-label">My Tasks - Weekly Items</span>
-                        <span class="metric-value amber" id="task-my-weekly">0</span>
+                    <div class="metric-row" data-view="tasks-due" onclick="switchMetricView('tasks-due')">
+                        <span class="metric-label">Due Today</span>
+                        <span class="metric-value amber" id="tasks-due-today">0</span>
                     </div>
-                    <div style="border-top:1px solid var(--border);margin:8px 0;opacity:0.3"></div>
-                    <div class="metric-row" data-view="task-team-past-due" onclick="switchMetricView('task-team-past-due')">
-                        <span class="metric-label">Team Past Due</span>
-                        <span class="metric-value high" id="task-team-past-due">0</span>
-                    </div>
-                    <div class="metric-row" data-view="task-team-due-today" onclick="switchMetricView('task-team-due-today')">
-                        <span class="metric-label">Team Due Today</span>
-                        <span class="metric-value amber" id="task-team-due-today">0</span>
-                    </div>
-                    <div class="metric-row" data-view="task-team-completed" onclick="switchMetricView('task-team-completed')">
-                        <span class="metric-label">Team Completed (24h)</span>
-                        <span class="metric-value green" id="task-team-completed">0</span>
+                    <div class="metric-row" data-view="tasks-overdue" onclick="switchMetricView('tasks-overdue')">
+                        <span class="metric-label">Past Due</span>
+                        <span class="metric-value high" id="tasks-past-due">0</span>
                     </div>
                     </div>
                 </div>
@@ -647,26 +628,10 @@
                 'email-cc-fyi': 'CC: FYI'
             };
 
-            // Task category map
-            const taskCategoryMap = {
-                'task-my-recent': 'My Tasks - Recent Submissions',
-                'task-my-weekly': 'My Tasks - Weekly Items',
-                'task-team-past-due': 'Team Past Due',
-                'task-team-due-today': 'Team Due Today',
-                'task-team-completed': 'Team Completed (24h)'
-            };
-
             // If Daily Briefing emails are loaded and this is a briefing category, filter them
             if (window.allBriefingEmails && briefingCategoryMap[view]) {
                 console.log('📧 Switching to Daily Briefing category:', briefingCategoryMap[view]);
                 filterBriefingByCategory(briefingCategoryMap[view]);
-                return; // Don't call renderContent()
-            }
-
-            // If tasks loaded and this is a task category, filter them
-            if (liveData.tasks && taskCategoryMap[view]) {
-                console.log('📋 Switching to task category:', taskCategoryMap[view]);
-                filterTasksByCategory(taskCategoryMap[view]);
                 return; // Don't call renderContent()
             }
 
@@ -675,11 +640,6 @@
                 'tasks-received': 'Tasks Received Today',
                 'tasks-due': 'Tasks Due Today',
                 'tasks-overdue': 'Past Due Tasks',
-                'task-my-recent': 'My Tasks - Recent Submissions',
-                'task-my-weekly': 'My Tasks - Weekly Items',
-                'task-team-past-due': 'Team Past Due',
-                'task-team-due-today': 'Team Due Today',
-                'task-team-completed': 'Team Completed (24h)',
                 'email-unprocessed': 'UNPROCESSED Emails',
                 'email-urgent-priority': 'Urgent/Priority',
                 'email-to-need-response': 'To: Need Response/Action',
@@ -712,68 +672,36 @@
             const now = new Date();
             const todayEST = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
-            // Show debug panel
-            const debugPanel = document.getElementById('debug-panel');
-            const debugContent = document.getElementById('debug-content');
-            if (debugPanel && debugContent) {
-                debugPanel.style.display = 'block';
-
-                let debugHtml = `<div>📊 Total emails in liveData: <strong>${liveData.emails?.length || 0}</strong></div>`;
-
-                if (liveData.emails && liveData.emails.length > 0) {
-                    const firstEmail = liveData.emails[0];
-                    debugHtml += `<div style="margin-top:8px">📧 First email:</div>`;
-                    debugHtml += `<div style="margin-left:16px">- Subject: ${firstEmail.subject}</div>`;
-                    debugHtml += `<div style="margin-left:16px">- Categories: ${JSON.stringify(firstEmail.categories)}</div>`;
-                    debugHtml += `<div style="margin-left:16px">- From: ${firstEmail.from}</div>`;
-                }
-
-                // Check if sidebar elements exist
-                debugHtml += `<div style="margin-top:8px;border-top:1px solid #8b5cf6;padding-top:8px">🔍 DOM Check:</div>`;
-                const elementsToCheck = ['email-to-fyi', 'email-unprocessed', 'email-urgent-priority'];
-                elementsToCheck.forEach(id => {
-                    const elem = document.getElementById(id);
-                    const exists = elem ? '✅' : '❌';
-                    const value = elem ? elem.textContent : 'N/A';
-                    debugHtml += `<div style="margin-left:16px">${exists} ${id}: "${value}"</div>`;
-                });
-
-                debugContent.innerHTML = debugHtml;
-            }
-
-            console.log('📊 updateDashboard() - Total emails:', liveData.emails?.length || 0);
-            if (liveData.emails && liveData.emails.length > 0) {
-                console.log('📧 First email categories:', liveData.emails[0].categories);
-                console.log('📧 First email full:', liveData.emails[0]);
-            }
-
             // Filter tasks by due date
+            const tasksToday = liveData.tasks.filter(t => {
+                if (!t.due_on && !t.due_date) return false;
+                const dueDate = new Date(t.due_on || t.due_date);
+                return dueDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === todayEST;
+            });
+
+            const tasksOverdue = liveData.tasks.filter(t => {
+                if (!t.due_on && !t.due_date) return false;
+                const dueDate = new Date(t.due_on || t.due_date);
+                return dueDate < now;
+            });
+
+            // Update task metrics
+            document.getElementById('tasks-received-today').textContent = liveData.tasks.length || 0;
+            document.getElementById('tasks-due-today').textContent = tasksToday.length || 0;
+            document.getElementById('tasks-past-due').textContent = tasksOverdue.length || 0;
+
             // Count UNPROCESSED (emails WITHOUT "Processed" tag)
             const unprocessedCount = liveData.emails.filter(e =>
                 !e.categories || !e.categories.includes('Processed')
             ).length;
 
-            console.log('📊 Unprocessed count:', unprocessedCount);
-
             // Count emails by category (ONLY emails WITH "Processed" tag)
             const countByCategory = (categoryName) => {
-                const count = liveData.emails.filter(e =>
+                return liveData.emails.filter(e =>
                     e.categories &&
                     e.categories.includes('Processed') &&
                     e.categories.includes(categoryName)
                 ).length;
-                console.log(`📊 Count for "${categoryName}":`, count);
-
-                // Add to debug panel
-                const debugContent = document.getElementById('debug-content');
-                if (debugContent) {
-                    const div = document.createElement('div');
-                    div.style.marginLeft = '16px';
-                    div.innerHTML = `Count for "${categoryName}": <strong>${count}</strong>`;
-                    debugContent.appendChild(div);
-                }
-
-                return count;
             };
 
             // Count PRIORITY emails (URGENT + Needs Reply + Portfolio CEO_CFO + To: External + Meeting Request External)
@@ -785,57 +713,12 @@
             ).length;
 
             // Update email metrics
-            console.log('🔧 Updating DOM elements...');
-            const toFyiCount = countByCategory('To: FYI');
-            console.log('🔧 About to set email-to-fyi to:', toFyiCount);
-
-            const toFyiElement = document.getElementById('email-to-fyi');
-            console.log('🔧 email-to-fyi element:', toFyiElement);
-
-            if (toFyiElement) {
-                toFyiElement.textContent = toFyiCount || 0;
-                console.log('✅ Set email-to-fyi.textContent to:', toFyiElement.textContent);
-            } else {
-                console.error('❌ email-to-fyi element not found!');
-            }
-
             document.getElementById('email-unprocessed').textContent = unprocessedCount || 0;
             document.getElementById('email-urgent-priority').textContent = countByCategory('Urgent/Priority') || 0;
             document.getElementById('email-to-need-response').textContent = countByCategory('To: Need Response/Action') || 0;
-            // email-to-fyi already updated above with logging
+            document.getElementById('email-to-fyi').textContent = countByCategory('To: FYI') || 0;
             document.getElementById('email-cc-need-response').textContent = countByCategory('CC: Need Response/Action') || 0;
             document.getElementById('email-cc-fyi').textContent = countByCategory('CC: FYI') || 0;
-
-            console.log('✅ All email metrics updated');
-
-            // VERIFY the updates actually stuck
-            setTimeout(() => {
-                const debugContent = document.getElementById('debug-content');
-                if (debugContent) {
-                    const verifyDiv = document.createElement('div');
-                    verifyDiv.style.marginTop = '8px';
-                    verifyDiv.style.borderTop = '1px solid #8b5cf6';
-                    verifyDiv.style.paddingTop = '8px';
-                    verifyDiv.innerHTML = `<div style="color:#f59e0b">⚠️ AFTER UPDATE:</div>`;
-
-                    const elementsToVerify = ['email-to-fyi', 'email-unprocessed', 'email-urgent-priority'];
-                    elementsToVerify.forEach(id => {
-                        const elem = document.getElementById(id);
-                        const value = elem ? elem.textContent : 'N/A';
-                        verifyDiv.innerHTML += `<div style="margin-left:16px">${id}: "${value}"</div>`;
-                    });
-
-                    debugContent.appendChild(verifyDiv);
-                }
-            }, 100);
-
-            // Update Asana task metrics
-            const countByTaskCategory = (cat) => (liveData.tasks || []).filter(t => t.category === cat).length;
-            document.getElementById('task-my-recent').textContent = countByTaskCategory('My Tasks - Recent Submissions') || 0;
-            document.getElementById('task-my-weekly').textContent = countByTaskCategory('My Tasks - Weekly Items') || 0;
-            document.getElementById('task-team-past-due').textContent = countByTaskCategory('Team Past Due') || 0;
-            document.getElementById('task-team-due-today').textContent = countByTaskCategory('Team Due Today') || 0;
-            document.getElementById('task-team-completed').textContent = countByTaskCategory('Team Completed (24h)') || 0;
 
             // Render schedule
             renderSchedule();
@@ -1164,64 +1047,6 @@
                     btn.disabled = false;
                     icon.textContent = '🔄';
                     text.textContent = 'Refresh Emails';
-                }, 3000);
-            }
-        }
-
-        async function manualRefreshTasks() {
-            const btn = document.getElementById('refresh-tasks-btn');
-            const icon = document.getElementById('refresh-tasks-icon');
-            const text = document.getElementById('refresh-tasks-text');
-
-            // Disable button and show loading state
-            btn.disabled = true;
-            icon.innerHTML = '<span class="spinner">⟳</span>';
-            text.textContent = 'Analyzing...';
-
-            try {
-                console.log('📋 Manual task refresh triggered - calling task triage...');
-                const startTime = Date.now();
-
-                // Call task triage webhook
-                const response = await fetch('/api/asana/triage-tasks', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer dev-secret-12345'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-                console.log('✅ Task triage complete:', data);
-
-                // Show success message
-                icon.textContent = '✅';
-                text.textContent = `${data.total_tasks} tasks analyzed`;
-
-                // Wait 2 seconds then reload the page to show updated tasks
-                setTimeout(() => {
-                    console.log('🔄 Reloading dashboard to show updated tasks...');
-                    location.reload();
-                }, 2000);
-
-            } catch (error) {
-                console.error('❌ Manual task refresh error:', error);
-
-                // Show error message
-                icon.textContent = '❌';
-                text.textContent = 'Refresh failed';
-
-                // Re-enable button after 3 seconds
-                setTimeout(() => {
-                    btn.disabled = false;
-                    icon.textContent = '📋';
-                    text.textContent = 'Refresh Tasks';
                 }, 3000);
             }
         }
@@ -1576,37 +1401,16 @@
 
         // Filter briefing emails by category and display
         function filterBriefingByCategory(category) {
-            // Use allBriefingEmails if available, otherwise fall back to liveData.emails
-            const emailSource = window.allBriefingEmails || liveData.emails || [];
-            if (emailSource.length === 0) {
-                console.warn('No emails available to filter');
-                return;
-            }
-
-            console.log('📧 Filtering', emailSource.length, 'emails for category:', category);
+            if (!window.allBriefingEmails) return;
 
             window.currentBriefingCategory = category;
             const container = document.getElementById('content');
             if (!container) return;
 
-            // Filter emails by category - check both normalized and original categories
-            const filteredEmails = emailSource.filter(email => {
-                // Check if email.categories array includes the category (from liveData format)
-                if (email.categories && Array.isArray(email.categories)) {
-                    return email.categories.includes(category);
-                }
-                // Check direct category field (from daily briefing format)
-                if (email.category === category) return true;
-
-                // Normalize and check
-                let normalizedCategory = email.category || '';
-                if (normalizedCategory.includes(' - ')) {
-                    normalizedCategory = normalizedCategory.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
-                }
-                return normalizedCategory === category;
+            // Filter emails by category
+            const filteredEmails = window.allBriefingEmails.filter(email => {
+                return email.category === category;
             });
-
-            console.log('✅ Filtered to', filteredEmails.length, 'emails');
 
             // Render filtered list
             let html = '<div style="padding:20px">';
@@ -1627,162 +1431,6 @@
             html += '</div>';
 
             container.innerHTML = html;
-        }
-
-        // Filter tasks by category
-        function filterTasksByCategory(category) {
-            if (!liveData || !liveData.tasks) return;
-
-            window.currentTaskCategory = category;
-            const container = document.getElementById('content');
-            if (!container) return;
-
-            // Filter tasks by category
-            const filteredTasks = liveData.tasks.filter(task => task.category === category);
-
-            // Render filtered list
-            let html = '<div style="padding:20px">';
-            html += `<h2 style="margin-bottom:20px">${category} (${filteredTasks.length})</h2>`;
-
-            if (filteredTasks.length === 0) {
-                html += '<div style="color:var(--text2);padding:20px;text-align:center">No tasks in this category</div>';
-            } else {
-                filteredTasks.forEach(task => {
-                    const dueDate = task.due_on ? new Date(task.due_on).toLocaleDateString() : 'No due date';
-                    const isOverdue = task.due_on && new Date(task.due_on) < new Date();
-                    const dueDateColor = isOverdue ? 'var(--red)' : task.due_on && new Date(task.due_on).toDateString() === new Date().toDateString() ? 'var(--amber)' : 'var(--text2)';
-
-                    html += `<div onclick="viewTaskDetail('${task.gid}')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='var(--card)'">`;
-                    html += `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(task.name || 'Untitled task')}</div>`;
-                    html += `<div style="font-size:.8rem;color:var(--text2)">Assigned to: ${escapeHtml(task.assignee || 'Unassigned')} • <span style="color:${dueDateColor}">Due: ${dueDate}</span></div>`;
-                    if (task.ai_summary) {
-                        html += `<div style="font-size:.75rem;color:var(--text3);margin-top:4px;font-style:italic">${escapeHtml(task.ai_summary.substring(0, 150))}...</div>`;
-                    }
-                    html += '</div>';
-                });
-            }
-
-            html += '<button onclick="fetchLiveData()" style="margin-top:20px;padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:6px;cursor:pointer">← Back to Dashboard</button>';
-            html += '</div>';
-
-            container.innerHTML = html;
-        }
-
-        // View task detail with AI analysis
-        async function viewTaskDetail(taskGid) {
-            const container = document.getElementById('content');
-            if (!container) return;
-
-            const task = liveData.tasks.find(t => t.gid === taskGid);
-            if (!task) {
-                container.innerHTML = '<div style="padding:20px;color:var(--red)">Task not found</div>';
-                return;
-            }
-
-            let html = '<div style="padding:20px;max-width:900px;margin:0 auto">';
-
-            // Header
-            html += `<div style="margin-bottom:24px">`;
-            html += `<h2 style="margin-bottom:8px">${escapeHtml(task.name)}</h2>`;
-            html += `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--text2)">`;
-            html += `<span>📋 ${task.category}</span>`;
-            html += `<span>👤 ${escapeHtml(task.assignee)}</span>`;
-            if (task.due_on) {
-                const dueDate = new Date(task.due_on);
-                const isOverdue = dueDate < new Date();
-                html += `<span style="color:${isOverdue ? 'var(--red)' : 'var(--text2)'}">📅 Due: ${dueDate.toLocaleDateString()}</span>`;
-            }
-            html += `</div>`;
-            html += `</div>`;
-
-            // AI Analysis Section
-            if (task.ai_summary) {
-                html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">`;
-                html += `<h3 style="font-size:1rem;margin-bottom:12px;color:var(--purple)">🤖 AI Analysis</h3>`;
-                html += `<p style="line-height:1.6;color:var(--text)">${escapeHtml(task.ai_summary)}</p>`;
-                html += `</div>`;
-            }
-
-            // Draft Comment Section
-            if (task.draft_comment) {
-                html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">`;
-                html += `<h3 style="font-size:1rem;margin-bottom:12px;color:var(--blue)">💬 Draft Comment for John</h3>`;
-                html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:12px;line-height:1.6">${escapeHtml(task.draft_comment)}</div>`;
-                html += `<button onclick="copyDraftComment('${taskGid}')" style="padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:6px;cursor:pointer;font-size:.85rem">📋 Copy Comment</button>`;
-                html += `</div>`;
-            }
-
-            // Action Plan
-            if (task.action_plan) {
-                try {
-                    const actionPlan = JSON.parse(task.action_plan);
-                    if (actionPlan.length > 0) {
-                        html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">`;
-                        html += `<h3 style="font-size:1rem;margin-bottom:12px;color:var(--green)">✅ Action Plan</h3>`;
-                        html += `<ul style="margin:0;padding-left:20px">`;
-                        actionPlan.forEach(action => {
-                            html += `<li style="margin-bottom:8px;line-height:1.6">${escapeHtml(action)}</li>`;
-                        });
-                        html += `</ul>`;
-                        html += `</div>`;
-                    }
-                } catch (e) {
-                    console.error('Failed to parse action_plan:', e);
-                }
-            }
-
-            // Priority Assessment
-            if (task.priority_assessment) {
-                html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">`;
-                html += `<h3 style="font-size:1rem;margin-bottom:12px;color:var(--amber)">⚡ Priority Assessment</h3>`;
-                html += `<p style="line-height:1.6">${escapeHtml(task.priority_assessment)}</p>`;
-                html += `</div>`;
-            }
-
-            // Blockers
-            if (task.blockers) {
-                try {
-                    const blockers = JSON.parse(task.blockers);
-                    if (blockers.length > 0) {
-                        html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">`;
-                        html += `<h3 style="font-size:1rem;margin-bottom:12px;color:var(--red)">🚧 Potential Blockers</h3>`;
-                        html += `<ul style="margin:0;padding-left:20px">`;
-                        blockers.forEach(blocker => {
-                            html += `<li style="margin-bottom:8px;line-height:1.6">${escapeHtml(blocker)}</li>`;
-                        });
-                        html += `</ul>`;
-                        html += `</div>`;
-                    }
-                } catch (e) {
-                    console.error('Failed to parse blockers:', e);
-                }
-            }
-
-            // Actions
-            html += `<div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap">`;
-            if (task.permalink_url) {
-                html += `<a href="${task.permalink_url}" target="_blank" style="padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:6px;cursor:pointer;text-decoration:none;display:inline-block">🔗 Open in Asana</a>`;
-            }
-            html += `<button onclick="filterTasksByCategory('${task.category}')" style="padding:10px 20px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer">← Back to ${task.category}</button>`;
-            html += `</div>`;
-
-            html += '</div>';
-
-            container.innerHTML = html;
-        }
-
-        // Copy draft comment to clipboard
-        async function copyDraftComment(taskGid) {
-            const task = liveData.tasks.find(t => t.gid === taskGid);
-            if (!task || !task.draft_comment) return;
-
-            try {
-                await navigator.clipboard.writeText(task.draft_comment);
-                alert('✅ Draft comment copied to clipboard!\n\nYou can now paste it into Asana.');
-            } catch (err) {
-                console.error('Failed to copy:', err);
-                alert('❌ Failed to copy to clipboard');
-            }
         }
 
         // Process all emails with AI triage
@@ -3416,16 +3064,10 @@
                 };
 
                 data.emails.forEach(email => {
-                    // Normalize category format: "TO - FYI" -> "To: FYI"
-                    let category = email.category || '';
-                    if (category.includes(' - ')) {
-                        category = category.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
-                    }
-
-                    if (emailsByCategory[category]) {
-                        emailsByCategory[category].push(email);
+                    if (emailsByCategory[email.category]) {
+                        emailsByCategory[email.category].push(email);
                     } else {
-                        console.warn('⚠️ Email has unknown category:', email.category, '(normalized:', category, ')');
+                        console.warn('⚠️ Email has unknown category:', email.category);
                     }
                 });
 
