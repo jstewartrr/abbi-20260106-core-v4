@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.6.0-ASANA - Emails + Asana Tasks integrated -->
-<!-- Force refresh: 2026-01-25T06:15:00Z -->
+<!-- ABBI Executive Dashboard v9.6.1-AI-FIX - Fix AI summaries showing clearly -->
+<!-- Force refresh: 2026-01-25T07:00:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2006,80 +2006,13 @@
 
         // Generate AI Summary (enhanced - follows v6.2 protocol)
         function generateAISummary(email) {
-            const subject = email.subject || '';
-            const body = email.body || email.bodyPreview || '';
-            const from = email.from_name || email.from || 'Unknown';
-            const fromEmail = email.from || '';
-
-            // Keyword-based analysis (placeholder for real Claude AI)
-            const isRequest = /request|please|could you|would you|need|require|can you|asking/i.test(body + ' ' + subject);
-            const hasDeadline = /by|before|deadline|due|asap|urgent|eod|end of day|today|tomorrow|this week/i.test(body + ' ' + subject);
-            const isFollowUp = /follow up|following up|checking in|status|update on/i.test(body + ' ' + subject);
-            const isInformational = /fyi|for your information|update|report|attached|sharing|please see/i.test(body + ' ' + subject);
-            const isMeeting = /meeting|call|zoom|teams|conference|discussion|sync/i.test(subject);
-            const isInvestor = /lp|limited partner|fund|capital|commitment|distribution|investor/i.test(body + ' ' + subject);
-            const isPortfolio = /ceo|cfo|pace|shiloh|xtrac|it8|portfolio company/i.test(body + ' ' + subject);
-
-            // Topic determination (v6.2 categories)
-            let topic = 'General Communication';
-            if (hasDeadline) topic = 'URGENT - Time Sensitive';
-            else if (isInvestor) topic = 'Investor Relations';
-            else if (isPortfolio) topic = 'Portfolio Management';
-            else if (isMeeting) topic = 'Meeting/Calendar';
-            else if (isFollowUp) topic = '🔄 Follow-up Required';
-            else if (isInformational) topic = 'Informational (FYI)';
-            else if (isRequest) topic = 'Action Required';
-
-            // Summary generation
-            let summary = `${from} sent an email regarding "${subject}".`;
-            if (body.length > 50) {
-                summary += ` ${body.substring(0, 250).replace(/\n/g, ' ')}${body.length > 250 ? '...' : ''}`;
-            }
-
-            // Request identification
-            let request = 'No specific request identified.';
-            if (isRequest && hasDeadline) {
-                request = 'Sender is requesting urgent action with a time constraint. Immediate response recommended.';
-            } else if (isRequest) {
-                request = 'Sender is requesting action or response from you.';
-            } else if (isFollowUp) {
-                request = 'Sender is following up on a previous communication and may be expecting a status update.';
-            } else if (isInformational) {
-                request = 'This appears to be informational only (FYI). No direct action required.';
-            }
-
-            // Action items detection
-            let actionItems = 'No explicit action items or deadlines mentioned.';
-            if (hasDeadline && isRequest) {
-                actionItems = 'TIME-SENSITIVE: Review immediately for deadlines. Action may be required today or within 24 hours.';
-            } else if (hasDeadline) {
-                actionItems = 'Time-sensitive information detected. Review for any deadline implications.';
-            } else if (isRequest) {
-                actionItems = 'Action or response appears to be needed, though no specific deadline mentioned.';
-            }
-
-            // Your action determination (v6.2 protocol)
-            let yourAction = 'Review and acknowledge if appropriate.';
-            if (isInvestor) {
-                yourAction = 'INVESTOR EMAIL: Requires your personal attention and response. High priority.';
-            } else if (isPortfolio) {
-                yourAction = 'PORTFOLIO LEADERSHIP: CEO/CFO communication. Review and respond as appropriate.';
-            } else if (hasDeadline && isRequest) {
-                yourAction = 'URGENT ACTION: Response or action required within specified timeframe. Prioritize immediately.';
-            } else if (isRequest) {
-                yourAction = 'Response recommended within 24 hours. Review and reply when appropriate.';
-            } else if (isMeeting) {
-                yourAction = 'Review meeting details. Accept/decline calendar invitation or confirm attendance.';
-            } else if (isInformational) {
-                yourAction = 'FYI only. No action required unless you have questions or concerns.';
-            }
-
+            // Return loading placeholders - real AI analysis will replace these
             return {
-                topic: topic,
-                summary: summary,
-                request: request,
-                actionItems: actionItems,
-                yourAction: yourAction
+                topic: '⏳ Loading AI analysis...',
+                summary: 'Claude is analyzing this email. This will take 5-10 seconds...',
+                request: 'Processing...',
+                actionItems: 'Processing...',
+                yourAction: 'Processing...'
             };
         }
 
