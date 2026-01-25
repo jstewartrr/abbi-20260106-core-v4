@@ -62,11 +62,14 @@ async function fetchEmails(mailbox, folders) {
       });
 
       if (result.emails && result.emails.length > 0) {
-        // Filter to last 7 days
+        // Filter to last 7 days and add mailbox info
         const recent = result.emails.filter(email => {
           const emailDate = new Date(email.date);
           return emailDate >= sevenDaysAgo;
-        });
+        }).map(email => ({
+          ...email,
+          mailbox: mailbox  // Add mailbox so we know which account to use later
+        }));
 
         console.log(`    ✓ ${recent.length} recent emails (${result.emails.length} total)`);
         allEmails.push(...recent);
@@ -77,6 +80,115 @@ async function fetchEmails(mailbox, folders) {
   }
 
   return allEmails;
+}
+
+// Fetch full email bodies for detailed caching
+async function fetchFullEmails(emails) {
+  console.log(`\n📬 Fetching full email bodies for ${emails.length} emails...`);
+  const fullEmails = [];
+
+  for (const email of emails) {
+    try {
+      // Determine the correct mailbox for this email
+      const mailbox = email.mailbox || 'jstewart@middleground.com';
+
+      const result = await mcpCall(M365_GATEWAY, 'get_email', {
+        message_id: email.id,
+        user: mailbox
+      }, 30000);
+
+      if (result && result.body) {
+        fullEmails.push({
+          ...email,
+          full_body: result.body,
+          to: result.to || [],
+          cc: result.cc || []
+        });
+        console.log(`  ✓ Fetched body for: ${email.subject?.substring(0, 50)}`);
+      } else {
+        // Keep email without full body
+        fullEmails.push(email);
+      }
+    } catch (error) {
+      console.error(`  ✗ Failed to fetch body for ${email.id}:`, error.message);
+      fullEmails.push(email); // Keep without full body
+    }
+  }
+
+  return fullEmails;
+}
+
+// Generate comprehensive AI analysis for each email
+async function analyzeEmailsWithAI(emails) {
+  console.log(`\n🧠 Generating comprehensive AI analysis for ${emails.length} emails...`);
+  const analyzed = [];
+
+  for (const email of emails) {
+    try {
+      const bodyForAI = (email.full_body || email.preview || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 5000); // Limit to 5000 chars
+
+      const prompt = `You are an executive assistant for John Stewart, Managing Partner at Middleground Capital (private equity firm).
+
+Analyze this email and provide a structured response in JSON format:
+
+Email:
+From: ${email.from}
+Subject: ${email.subject}
+Body: ${bodyForAI}
+
+Return ONLY valid JSON (no markdown):
+{
+  "summary": "2-3 sentence comprehensive summary of key points and context",
+  "action_plan": ["Action item 1", "Action item 2"] or [] if no actions needed,
+  "recommended_response": "Suggested email reply text" or "" if no reply needed
+}`;
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          temperature: 0.3,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (response.ok) {
+        const aiData = await response.json();
+        let aiText = aiData.content[0].text.trim();
+        aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        const analysis = JSON.parse(aiText);
+        analyzed.push({
+          ...email,
+          ai_summary: analysis.summary || '',
+          action_plan: JSON.stringify(analysis.action_plan || []),
+          recommended_response: analysis.recommended_response || ''
+        });
+        console.log(`  ✓ Analyzed: ${email.subject?.substring(0, 50)}`);
+      } else {
+        console.error(`  ✗ AI analysis failed for ${email.id}`);
+        analyzed.push(email);
+      }
+
+      // Small delay to avoid rate limits (reduced from 500ms to 100ms)
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error(`  ✗ Analysis error for ${email.id}:`, error.message);
+      analyzed.push(email);
+    }
+  }
+
+  return analyzed;
 }
 
 async function triageWithClaude(emails) {
@@ -92,42 +204,39 @@ async function triageWithClaude(emails) {
       `ID: ${e.id}\n  From: ${e.from}\n  Subject: ${e.subject}\n  Preview: ${(e.preview || '').substring(0, 200)}\n  Received: ${e.date}`
     ).join('\n\n');
 
-    const prompt = `CRITICAL: Categorize ALL ${batch.length} emails below for John Stewart (Managing Partner at Middleground Capital).
+    const prompt = `Categorize ALL ${batch.length} emails below for John Stewart (Managing Partner at Middleground Capital).
 
 ${emailSummaries}
 
-IMPORTANT: You MUST return exactly ${batch.length} results - one for EACH email above.
+CRITICAL: You MUST return exactly ${batch.length} results - one for EACH email above. Include ALL emails, even automated notifications.
 
 For each email, determine:
-1. priority: "urgent", "high", "medium", or "fyi"
+1. priority: "urgent", "high", "medium", or "low"
 2. is_to_email: true if John is in To: line, false if CC
 3. needs_response: true if requires John's action/response, false if just FYI
-4. category: Assign based on priority + is_to_email + needs_response:
+4. category: Assign based on content:
    - If priority is "urgent" OR "high": category = "Urgent/Priority"
    - If is_to_email=true AND needs_response=true: category = "TO - Need Response"
    - If is_to_email=true AND needs_response=false: category = "TO - FYI"
    - If is_to_email=false AND needs_response=true: category = "CC - Need Response"
    - If is_to_email=false AND needs_response=false: category = "CC - FYI"
 
-Categorization rules:
-- Portfolio company CEOs/CFOs = priority: high, needs_response: true
-- Investors, placement agents, banks, lenders = priority: high, needs_response: true
-- Legal (Dechert, etc.) = priority: high, needs_response: true
-- Urgent matters = priority: urgent, needs_response: true
-- Internal team emails TO John = priority: medium, evaluate needs_response
-- CC emails = usually needs_response: false unless specifically asks John to do something
-- Automated notifications/receipts/newsletters = priority: fyi, needs_response: false (mark as spam)
-- No-reply senders = priority: fyi, needs_response: false (mark as spam)
-- Spam/junk = priority: fyi, needs_response: false (mark as spam)
+Priority guidelines (be INCLUSIVE, when in doubt assign medium):
+- Portfolio company communications = high
+- Investor/partner communications = high
+- Legal matters = high
+- Internal team emails = medium
+- Automated notifications = low (but still include them!)
+- When uncertain = medium
 
 Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no explanation):
 [
   {
     "id": "email_id_from_above",
-    "priority": "high",
-    "category": "Urgent/Priority",
+    "priority": "medium",
+    "category": "TO - FYI",
     "is_to_email": true,
-    "needs_response": true
+    "needs_response": false
   },
   ...
 ]`;
@@ -173,11 +282,21 @@ Return ONLY a JSON array with exactly ${batch.length} objects (no markdown, no e
       console.log(`    ✓ Triaged ${results.length} emails`);
     } catch (error) {
       console.error(`    ✗ Triage failed:`, error.message);
-      // Continue with next batch
+      // Add emails with default categorization so they don't get dropped
+      for (const email of batch) {
+        triaged.push({
+          ...email,
+          priority: 'medium',
+          category: 'TO - FYI',
+          is_to_email: true,
+          needs_response: false
+        });
+      }
+      console.log(`    ✓ Added ${batch.length} emails with default categorization`);
     }
 
-    // Small delay to avoid rate limits
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Small delay to avoid rate limits (reduced from 500ms to 200ms)
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
 
   return triaged;
@@ -211,6 +330,12 @@ async function cacheToSnowflake(emails) {
     try {
       // Use MERGE to update if exists, insert if not
       // IMPORTANT: Don't overwrite PROCESSED flag if email already exists and was processed
+      // Escape and truncate fields for Snowflake
+      const fullBody = (email.full_body || '').replace(/'/g, "''").substring(0, 65000);
+      const aiSummary = (email.ai_summary || '').replace(/'/g, "''").substring(0, 5000);
+      const actionPlan = (email.action_plan || '[]').replace(/'/g, "''").substring(0, 5000);
+      const recommendedResponse = (email.recommended_response || '').replace(/'/g, "''").substring(0, 5000);
+
       const sql = `
         MERGE INTO SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS AS target
         USING (SELECT
@@ -224,10 +349,14 @@ async function cacheToSnowflake(emails) {
           ${email.is_to_email ? 'true' : 'false'} AS IS_TO_EMAIL,
           ${email.needs_response ? 'true' : 'false'} AS NEEDS_RESPONSE,
           '${(email.folder || 'Inbox').replace(/'/g, "''")}' AS FOLDER,
-          'jstewart@middleground.com' AS MAILBOX,
+          '${email.mailbox || 'jstewart@middleground.com'}' AS MAILBOX,
           '${email.date || new Date().toISOString()}' AS RECEIVED_AT,
           '${new Date().toISOString()}' AS PROCESSED_AT,
-          '${today}' AS BRIEFING_DATE
+          '${today}' AS BRIEFING_DATE,
+          '${fullBody}' AS FULL_BODY,
+          '${aiSummary}' AS AI_SUMMARY,
+          '${actionPlan}' AS ACTION_PLAN,
+          '${recommendedResponse}' AS RECOMMENDED_RESPONSE
         ) AS source
         ON target.EMAIL_ID = source.EMAIL_ID
         WHEN MATCHED THEN
@@ -241,14 +370,20 @@ async function cacheToSnowflake(emails) {
             IS_TO_EMAIL = source.IS_TO_EMAIL,
             NEEDS_RESPONSE = source.NEEDS_RESPONSE,
             FOLDER = source.FOLDER,
-            PROCESSED_AT = source.PROCESSED_AT
+            PROCESSED_AT = source.PROCESSED_AT,
+            FULL_BODY = source.FULL_BODY,
+            AI_SUMMARY = source.AI_SUMMARY,
+            ACTION_PLAN = source.ACTION_PLAN,
+            RECOMMENDED_RESPONSE = source.RECOMMENDED_RESPONSE
         WHEN NOT MATCHED THEN
           INSERT (EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
                   CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
-                  FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, BRIEFING_DATE, PROCESSED)
+                  FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, BRIEFING_DATE, PROCESSED,
+                  FULL_BODY, AI_SUMMARY, ACTION_PLAN, RECOMMENDED_RESPONSE)
           VALUES (source.EMAIL_ID, source.SUBJECT, source.FROM_NAME, source.FROM_EMAIL, source.PREVIEW,
                   source.CATEGORY, source.PRIORITY, source.IS_TO_EMAIL, source.NEEDS_RESPONSE,
-                  source.FOLDER, source.MAILBOX, source.RECEIVED_AT, source.PROCESSED_AT, source.BRIEFING_DATE, false)
+                  source.FOLDER, source.MAILBOX, source.RECEIVED_AT, source.PROCESSED_AT, source.BRIEFING_DATE, false,
+                  source.FULL_BODY, source.AI_SUMMARY, source.ACTION_PLAN, source.RECOMMENDED_RESPONSE)
       `;
 
       await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
@@ -331,16 +466,110 @@ export default async function handler(req, res) {
     const triaged = await triageWithClaude(emails);
     console.log(`Triaged: ${triaged.length}/${emails.length} emails`);
 
-    // Step 3: Cache to Snowflake (excluding spam)
-    console.log('\n💾 STEP 3: Cache to Snowflake');
-    const cached = await cacheToSnowflake(triaged);
+    // Step 3: Check which emails need full analysis (to avoid timeout)
+    console.log('\n🔍 STEP 3: Checking existing cache');
+    const emailIds = triaged.map(e => e.id);
+    const cacheCheckQuery = `
+      SELECT EMAIL_ID, AI_SUMMARY
+      FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+      WHERE EMAIL_ID IN ('${emailIds.map(id => id.replace(/'/g, "''")).join("','")}')
+    `;
+
+    let existingAnalysis = [];
+    try {
+      const result = await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql: cacheCheckQuery }, 15000);
+      existingAnalysis = result.data || [];
+    } catch (error) {
+      console.log('  No existing cache or error:', error.message);
+    }
+
+    const emailsWithAnalysis = new Set(
+      existingAnalysis
+        .filter(row => row.AI_SUMMARY && row.AI_SUMMARY.length > 10)
+        .map(row => row.EMAIL_ID)
+    );
+
+    const emailsNeedingAnalysis = triaged.filter(e => !emailsWithAnalysis.has(e.id));
+    console.log(`  ${emailsWithAnalysis.size} emails already analyzed, ${emailsNeedingAnalysis.length} need analysis`);
+
+    // Filter out junk/automated emails
+    const junkDomains = ['dealcloud.com', 'noreply', 'no-reply', 'microsoft.com', 'azure', 'asana.com', 'equibase.com', 'bloodhorse.com', 'gmail.com'];
+    const junkKeywords = ['Daily Interaction Summary', 'Daily Email Summary', 'Deals Added Today', 'Verify your', 'Undeliverable', 'Canceled:', 'Action required:', 'We noticed a new login', 'Workout Notification', 'Stock Availability', 'Get started with'];
+
+    const realEmails = emailsNeedingAnalysis.filter(e => {
+      const fromEmail = (e.from_email || e.from || '').toLowerCase();
+      const subject = e.subject || '';
+
+      // Skip if from junk domain
+      if (junkDomains.some(d => fromEmail.includes(d))) return false;
+
+      // Skip if subject contains junk keywords
+      if (junkKeywords.some(k => subject.includes(k))) return false;
+
+      return true;
+    });
+
+    console.log(`  Filtered to ${realEmails.length} real business emails (skipped ${emailsNeedingAnalysis.length - realEmails.length} junk)`);
+
+    // Sort by priority: high first, then needs_response, then medium, then low
+    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1, 'fyi': 0 };
+    realEmails.sort((a, b) => {
+      // First sort by needs_response
+      if (a.needs_response !== b.needs_response) {
+        return b.needs_response ? 1 : -1;
+      }
+      // Then by priority
+      return (priorityOrder[b.priority] || 2) - (priorityOrder[a.priority] || 2);
+    });
+
+    // Step 4: Fetch full email bodies (only for real business emails)
+    let fullEmails = triaged;
+    if (realEmails.length > 0) {
+      console.log('\n📬 STEP 4: Fetching full email bodies');
+      const limit = Math.min(realEmails.length, 10); // Process max 10 at a time to avoid timeout
+      const toProcess = realEmails.slice(0, limit);
+      console.log(`  Processing ${limit} PRIORITY emails (${realEmails.length} real business emails need analysis)`);
+
+      const fetchedFull = await fetchFullEmails(toProcess);
+
+      // Merge: emails that needed analysis (with full bodies) + emails that don't need analysis (as is)
+      fullEmails = [
+        ...fetchedFull,
+        ...triaged.filter(e => emailsWithAnalysis.has(e.id))
+      ];
+      console.log(`Full emails prepared: ${fullEmails.length}`);
+    } else {
+      console.log('\n✓ All emails already have analysis, skipping fetch');
+    }
+
+    // Step 5: Generate comprehensive AI analysis (only for real business emails)
+    let analyzed = fullEmails;
+    if (realEmails.length > 0) {
+      console.log('\n🧠 STEP 5: Generating comprehensive AI analysis');
+      const emailsWithBodies = fullEmails.filter(e => !emailsWithAnalysis.has(e.id));
+      const analyzedNew = await analyzeEmailsWithAI(emailsWithBodies);
+
+      // Merge: newly analyzed + already analyzed (as is)
+      analyzed = [
+        ...analyzedNew,
+        ...fullEmails.filter(e => emailsWithAnalysis.has(e.id))
+      ];
+      console.log(`AI analysis complete: ${analyzedNew.length} new, ${analyzed.length} total`);
+    } else {
+      console.log('\n✓ All real business emails already analyzed, skipping AI generation');
+    }
+
+    // Step 6: Cache to Snowflake with full analysis
+    console.log('\n💾 STEP 6: Cache to Snowflake');
+    const cached = await cacheToSnowflake(analyzed);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     console.log('\n' + '='.repeat(60));
     console.log('✅ TRIAGE COMPLETE');
     console.log(`⏱️  Duration: ${elapsed}s`);
-    console.log(`📊 Fetched: ${emails.length} | Triaged: ${triaged.length} | Cached: ${cached}`);
+    console.log(`📊 Fetched: ${emails.length} | Triaged: ${triaged.length} | Business emails analyzed: ${realEmails.length > 10 ? 10 : realEmails.length} | Cached: ${cached}`);
+    console.log(`📧 Skipped ${emailsNeedingAnalysis.length - realEmails.length} junk/automated emails`);
     console.log('='.repeat(60) + '\n');
 
     return res.json({
