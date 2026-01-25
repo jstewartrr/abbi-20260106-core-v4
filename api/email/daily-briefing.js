@@ -113,20 +113,23 @@ export default async function handler(req, res) {
     console.log(`📊 Daily Executive Email Briefing (ALL FOLDERS) - force: ${forceRefresh}...`);
     const startTime = Date.now();
 
+    // Define date variables for use throughout the function
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
     // Check Snowflake cache first (unless force refresh)
     if (!forceRefresh) {
       try {
         console.log('🔍 Checking Snowflake for cached results...');
-        const today = new Date().toISOString().split('T')[0];
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
         const cacheQuery = `
           SELECT
             EMAIL_ID, SUBJECT, FROM_NAME, FROM_EMAIL, PREVIEW,
             CATEGORY, PRIORITY, IS_TO_EMAIL, NEEDS_RESPONSE,
-            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, PROCESSED
+            FOLDER, MAILBOX, RECEIVED_AT, PROCESSED_AT, PROCESSED,
+            FULL_BODY, AI_SUMMARY, ACTION_PLAN, RECOMMENDED_RESPONSE
           FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
           WHERE BRIEFING_DATE >= '${sevenDaysAgoStr}'
             AND (PROCESSED IS NULL OR PROCESSED = false)
@@ -146,20 +149,35 @@ export default async function handler(req, res) {
             console.log('✅ Using cached results (fresh)');
 
             // Transform Snowflake results to match expected format
-            const emails = cachedResults.map(row => ({
-              id: row.EMAIL_ID,
-              subject: row.SUBJECT,
-              from: row.FROM_NAME,
-              from_email: row.FROM_EMAIL,
-              preview: row.PREVIEW,
-              category: row.CATEGORY,
-              priority: row.PRIORITY,
-              is_to_email: row.IS_TO_EMAIL,
-              needs_response: row.NEEDS_RESPONSE,
-              folder: row.FOLDER,
-              mailbox: row.MAILBOX,
-              received: row.RECEIVED_AT
-            }));
+            const emails = cachedResults.map(row => {
+              let actionPlan = [];
+              try {
+                if (row.ACTION_PLAN && row.ACTION_PLAN.length > 0) {
+                  actionPlan = JSON.parse(row.ACTION_PLAN);
+                }
+              } catch (e) {
+                console.warn('Failed to parse ACTION_PLAN for email', row.EMAIL_ID, ':', e.message);
+              }
+
+              return {
+                id: row.EMAIL_ID,
+                subject: row.SUBJECT,
+                from: row.FROM_NAME,
+                from_email: row.FROM_EMAIL,
+                preview: row.PREVIEW,
+                category: row.CATEGORY,
+                priority: row.PRIORITY,
+                is_to_email: row.IS_TO_EMAIL,
+                needs_response: row.NEEDS_RESPONSE,
+                folder: row.FOLDER,
+                mailbox: row.MAILBOX,
+                received: row.RECEIVED_AT,
+                full_body: row.FULL_BODY || '',
+                ai_summary: row.AI_SUMMARY || '',
+                action_plan: actionPlan,
+                recommended_response: row.RECOMMENDED_RESPONSE || ''
+              };
+            });
 
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
             return res.json({
