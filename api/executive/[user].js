@@ -1,6 +1,5 @@
 const GATEWAY_URL = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const SNOWFLAKE_URL = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 const USERS = {
   jstewart: {
@@ -37,12 +36,12 @@ export default async function handler(req, res) {
   const userConfig = USERS[user];
   if (!userConfig) return res.status(404).json({ success: false, error: 'User not found' });
 
-  // Fetch emails from triage cache in Snowflake (not directly from M365)
-  const emailPromises = [
-    mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `SELECT EMAIL_ID as "id", SUBJECT as "subject", FROM_NAME as "sender", CATEGORY as "category", PRIORITY as "priority", RECEIVED_AT as "date" FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
-    }).then(result => ({ emails: result.data || [] })).catch(() => ({ emails: [] }))
-  ];
+  // Fetch emails from multiple accounts if configured
+  const emailPromises = userConfig.emailAccounts
+    ? userConfig.emailAccounts.map(emailAddr =>
+        mcpCall(GATEWAY_URL, 'm365_read_emails', { user: emailAddr, unread_only: true, top: 20 })
+      )
+    : [mcpCall(GATEWAY_URL, 'm365_read_emails', { user: userConfig.email, unread_only: true, top: 10 })];
 
   // Fetch tasks from specific Asana projects (assigned to user AND assigned by user)
   const asanaPromises = userConfig.asanaProjects
@@ -69,27 +68,15 @@ export default async function handler(req, res) {
     mcpCall(SNOWFLAKE_URL, 'snowflake_execute_query', { query: "SELECT * FROM SOVEREIGN_MIND.RAW.HIVE_MIND WHERE CREATED_AT > DATEADD(hour, -24, CURRENT_TIMESTAMP()) ORDER BY CREATED_AT DESC LIMIT 5", response_format: 'json' })
   ]);
 
-  // Get emails from triage cache (single query)
+  // Merge emails from multiple accounts
   const allEmails = [];
   const emailStartIndex = 1;
-  const emailEndIndex = emailStartIndex + 1;
-  if (results[emailStartIndex]?.status === 'fulfilled') {
-    const emails = results[emailStartIndex].value?.emails || [];
-    // Map sender to from and normalize category format for dashboard compatibility
-    emails.forEach(e => {
-      if (e.sender && !e.from) e.from = e.sender;
-
-      // Convert category string to categories array
-      let categoryName = e.category || 'To: FYI';
-      // Convert "TO - FYI" to "To: FYI" format
-      if (categoryName.includes(' - ')) {
-        categoryName = categoryName.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
-      }
-
-      // Dashboard expects categories as array - unprocessed emails don't have 'Processed' tag
-      e.categories = [categoryName];
-    });
-    allEmails.push(...emails);
+  const emailEndIndex = emailStartIndex + (userConfig.emailAccounts?.length || 1);
+  for (let i = emailStartIndex; i < emailEndIndex; i++) {
+    if (results[i]?.status === 'fulfilled') {
+      const emails = results[i].value?.emails || results[i].value?.value || [];
+      allEmails.push(...emails);
+    }
   }
 
   // Merge Asana tasks from all queries
