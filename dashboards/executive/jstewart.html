@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.6.1 - Fallback to on-the-fly summary generation for unprocessed emails -->
+<!-- ABBI Executive Dashboard v9.6.2-debug - Fallback to on-the-fly summary generation for unprocessed emails -->
 <!-- Force refresh: 2026-01-24T23:07:32Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v9.6.1 | ABBI</title>
+    <title>Executive Dashboard v9.6.2-debug | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.6.1</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.6.2-debug</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -3465,9 +3465,18 @@
                         html += '</div>';
 
                         // Comprehensive Executive Summary
+                        console.log('🔍 DEBUG: analysis object:', analysis);
+                        console.log('🔍 DEBUG: comprehensive_summary exists?', !!analysis.comprehensive_summary);
+                        console.log('🔍 DEBUG: comprehensive_summary length:', analysis.comprehensive_summary?.length);
+                        console.log('🔍 DEBUG: comprehensive_summary value:', analysis.comprehensive_summary);
+
                         if (analysis.comprehensive_summary) {
                             html += '<div style="background:var(--bg);padding:20px;border-radius:8px;line-height:1.8;font-size:.95rem;color:var(--text);white-space:pre-wrap;margin-bottom:16px">';
                             html += escapeHtml(analysis.comprehensive_summary);
+                            html += '</div>';
+                        } else {
+                            html += '<div style="background:var(--red);color:white;padding:20px;border-radius:8px;margin-bottom:16px">';
+                            html += '❌ NO COMPREHENSIVE_SUMMARY FOUND - Check browser console for debug info';
                             html += '</div>';
                         }
 
