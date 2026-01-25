@@ -70,36 +70,19 @@ export default async function handler(req, res) {
     })
   ];
 
-  // Fetch tasks from Asana triage cache in Snowflake
-  const asanaPromises = [
-    mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `SELECT
-        TASK_GID as gid,
-        TASK_NAME as name,
-        ASSIGNEE_NAME as assignee,
-        DUE_DATE as due_on,
-        CATEGORY as category,
-        COMPLETED as completed,
-        AI_SUMMARY as ai_summary,
-        DRAFT_COMMENT as draft_comment,
-        ACTION_PLAN as action_plan,
-        PRIORITY_ASSESSMENT as priority_assessment,
-        BLOCKERS as blockers,
-        PERMALINK_URL as permalink_url
-      FROM SOVEREIGN_MIND.RAW.ASANA_TASK_ANALYSIS
-      ORDER BY
-        CASE CATEGORY
-          WHEN 'Team Past Due' THEN 1
-          WHEN 'Team Due Today' THEN 2
-          WHEN 'My Tasks - Recent Submissions' THEN 3
-          WHEN 'My Tasks - Weekly Items' THEN 4
-          WHEN 'Team Completed (24h)' THEN 5
-          ELSE 6
-        END,
-        DUE_DATE ASC NULLS LAST
-      LIMIT 100`
-    }).then(result => ({ tasks: result.data || [] })).catch(() => ({ tasks: [] }))
-  ];
+  // Fetch tasks directly from Asana (not from cache)
+  const asanaPromises = userConfig.asanaProjects
+    ? [
+        // Tasks assigned TO user in MP Project Dashboard
+        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, assignee: userConfig.asanaGid }),
+        // Tasks assigned TO user in Weekly Items
+        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, assignee: userConfig.asanaGid }),
+        // All incomplete tasks in MP Dashboard
+        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, completed: false }),
+        // All incomplete tasks in Weekly Items
+        mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, completed: false })
+      ]
+    : [Promise.resolve({ tasks: [] })];
 
   const results = await Promise.allSettled([
     // Calendar from jstewart only
@@ -142,12 +125,22 @@ export default async function handler(req, res) {
     console.error('[Executive API] Email query was rejected:', results[emailStartIndex]?.reason);
   }
 
-  // Get tasks from triage cache (single query)
+  // Get tasks from Asana API (4 queries: 2 assigned to user, 2 all incomplete)
   const allTasks = [];
   const asanaStartIndex = emailEndIndex;
-  if (results[asanaStartIndex]?.status === 'fulfilled') {
-    const tasks = results[asanaStartIndex].value?.tasks || [];
-    allTasks.push(...tasks);
+  const asanaEndIndex = asanaStartIndex + (userConfig.asanaProjects ? 4 : 1);
+  const taskIds = new Set();
+
+  for (let i = asanaStartIndex; i < asanaEndIndex; i++) {
+    if (results[i]?.status === 'fulfilled') {
+      const tasks = results[i].value?.tasks || results[i].value?.data || [];
+      tasks.forEach(task => {
+        if (task.gid && !taskIds.has(task.gid)) {
+          taskIds.add(task.gid);
+          allTasks.push(task);
+        }
+      });
+    }
   }
 
   // Get Hive Mind activity
