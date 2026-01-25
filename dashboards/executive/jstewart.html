@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.0.3 - Debug Logging Added -->
-<!-- Force refresh: 2026-01-25T08:30:00Z -->
+<!-- ABBI Executive Dashboard v10.0.4 - Visible Debug Panel -->
+<!-- Force refresh: 2026-01-25T08:45:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v10.0.3 | ABBI</title>
+    <title>Executive Dashboard v10.0.4 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.3</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.4</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -255,7 +255,13 @@
             <button class="nav-logout" onclick="logout()">Logout</button>
         </div>
     </nav>
-    
+
+    <!-- Debug Panel (temporary) -->
+    <div id="debug-panel" style="background:#1a1a2e;border:2px solid #8b5cf6;border-radius:8px;padding:16px;margin:16px;font-family:monospace;font-size:12px;color:#fff;display:none">
+        <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#8b5cf6">🔍 DEBUG INFO</div>
+        <div id="debug-content"></div>
+    </div>
+
     <!-- Main Content -->
     <main class="main">
         <!-- Three Column Dashboard -->
@@ -706,6 +712,25 @@
             const now = new Date();
             const todayEST = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
+            // Show debug panel
+            const debugPanel = document.getElementById('debug-panel');
+            const debugContent = document.getElementById('debug-content');
+            if (debugPanel && debugContent) {
+                debugPanel.style.display = 'block';
+
+                let debugHtml = `<div>📊 Total emails in liveData: <strong>${liveData.emails?.length || 0}</strong></div>`;
+
+                if (liveData.emails && liveData.emails.length > 0) {
+                    const firstEmail = liveData.emails[0];
+                    debugHtml += `<div style="margin-top:8px">📧 First email:</div>`;
+                    debugHtml += `<div style="margin-left:16px">- Subject: ${firstEmail.subject}</div>`;
+                    debugHtml += `<div style="margin-left:16px">- Categories: ${JSON.stringify(firstEmail.categories)}</div>`;
+                    debugHtml += `<div style="margin-left:16px">- From: ${firstEmail.from}</div>`;
+                }
+
+                debugContent.innerHTML = debugHtml;
+            }
+
             console.log('📊 updateDashboard() - Total emails:', liveData.emails?.length || 0);
             if (liveData.emails && liveData.emails.length > 0) {
                 console.log('📧 First email categories:', liveData.emails[0].categories);
@@ -728,6 +753,16 @@
                     e.categories.includes(categoryName)
                 ).length;
                 console.log(`📊 Count for "${categoryName}":`, count);
+
+                // Add to debug panel
+                const debugContent = document.getElementById('debug-content');
+                if (debugContent) {
+                    const div = document.createElement('div');
+                    div.style.marginLeft = '16px';
+                    div.innerHTML = `Count for "${categoryName}": <strong>${count}</strong>`;
+                    debugContent.appendChild(div);
+                }
+
                 return count;
             };
 
