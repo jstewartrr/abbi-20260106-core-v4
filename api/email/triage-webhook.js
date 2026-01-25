@@ -497,8 +497,19 @@ export default async function handler(req, res) {
     console.log(`  ${emailsWithAnalysis.size} emails already analyzed, ${emailsNeedingAnalysis.length} need analysis`);
 
     // Filter out junk/automated emails
-    const junkDomains = ['dealcloud.com', 'noreply', 'no-reply', 'microsoft.com', 'azure', 'asana.com', 'equibase.com', 'bloodhorse.com', 'gmail.com'];
-    const junkKeywords = ['Daily Interaction Summary', 'Daily Email Summary', 'Deals Added Today', 'Verify your', 'Undeliverable', 'Canceled:', 'Action required:', 'We noticed a new login', 'Workout Notification', 'Stock Availability', 'Get started with'];
+    const junkDomains = [
+      'dealcloud.com', 'noreply', 'no-reply', 'microsoft.com', 'azure', 'asana.com',
+      'equibase.com', 'bloodhorse.com', 'gmail.com', 'truist.com', 'message.truist.com',
+      'alertnotifications@', 'calendar@', 'postmaster@', 'notifications@', 'alerts@'
+    ];
+    const junkKeywords = [
+      'Daily Interaction Summary', 'Daily Email Summary', 'Deals Added Today',
+      'Verify your', 'Undeliverable', 'Canceled:', 'Action required:',
+      'We noticed a new login', 'Workout Notification', 'Stock Availability',
+      'Get started with', 'Meeting', 'Invitation', 'Updated:', 'statement is now available',
+      'notification', 'alert', 'reminder', 'Accepted:', 'Declined:', 'Tentative:',
+      'has invited you', 'join the meeting', 'calendar event'
+    ];
 
     const realEmails = emailsNeedingAnalysis.filter(e => {
       const fromEmail = (e.from_email || e.from || '').toLowerCase();
