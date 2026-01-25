@@ -416,9 +416,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Get limit from query parameter (for testing)
+    const emailLimit = req.query.limit ? parseInt(req.query.limit) : 10;
+
     console.log('\n' + '='.repeat(60));
     console.log('📧 EMAIL TRIAGE WEBHOOK TRIGGERED');
     console.log(`⏰ ${new Date().toISOString()}`);
+    console.log(`📊 Email processing limit: ${emailLimit}`);
     console.log('='.repeat(60));
 
     const startTime = Date.now();
@@ -526,7 +530,7 @@ export default async function handler(req, res) {
     let fullEmails = triaged;
     if (realEmails.length > 0) {
       console.log('\n📬 STEP 4: Fetching full email bodies');
-      const limit = Math.min(realEmails.length, 10); // Process max 10 at a time to avoid timeout
+      const limit = Math.min(realEmails.length, emailLimit); // Use emailLimit from query param
       const toProcess = realEmails.slice(0, limit);
       console.log(`  Processing ${limit} PRIORITY emails (${realEmails.length} real business emails need analysis)`);
 
