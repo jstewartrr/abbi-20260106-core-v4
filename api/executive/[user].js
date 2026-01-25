@@ -78,10 +78,16 @@ export default async function handler(req, res) {
     // Map sender to from and normalize category format for dashboard compatibility
     emails.forEach(e => {
       if (e.sender && !e.from) e.from = e.sender;
+
+      // Convert category string to categories array
+      let categoryName = e.category || 'To: FYI';
       // Convert "TO - FYI" to "To: FYI" format
-      if (e.category && e.category.includes(' - ')) {
-        e.category = e.category.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
+      if (categoryName.includes(' - ')) {
+        categoryName = categoryName.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
       }
+
+      // Dashboard expects categories as array - unprocessed emails don't have 'Processed' tag
+      e.categories = [categoryName];
     });
     allEmails.push(...emails);
   }
