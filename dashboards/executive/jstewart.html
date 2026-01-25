@@ -707,23 +707,6 @@
             const todayEST = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
             // Filter tasks by due date
-            const tasksToday = liveData.tasks.filter(t => {
-                if (!t.due_on && !t.due_date) return false;
-                const dueDate = new Date(t.due_on || t.due_date);
-                return dueDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === todayEST;
-            });
-
-            const tasksOverdue = liveData.tasks.filter(t => {
-                if (!t.due_on && !t.due_date) return false;
-                const dueDate = new Date(t.due_on || t.due_date);
-                return dueDate < now;
-            });
-
-            // Update task metrics
-            document.getElementById('tasks-received-today').textContent = liveData.tasks.length || 0;
-            document.getElementById('tasks-due-today').textContent = tasksToday.length || 0;
-            document.getElementById('tasks-past-due').textContent = tasksOverdue.length || 0;
-
             // Count UNPROCESSED (emails WITHOUT "Processed" tag)
             const unprocessedCount = liveData.emails.filter(e =>
                 !e.categories || !e.categories.includes('Processed')
