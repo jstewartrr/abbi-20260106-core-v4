@@ -15,7 +15,7 @@ async function mcpCall(url, tool, args = {}) {
 export default async function handler(req, res) {
   try {
     const result = await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `SELECT EMAIL_ID as id, SUBJECT as subject, FROM_NAME as from, CATEGORY as category, PRIORITY as priority, RECEIVED_AT as date, PROCESSED FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
+      sql: `SELECT EMAIL_ID as id, SUBJECT as subject, FROM_NAME as sender, CATEGORY as category, PRIORITY as priority, RECEIVED_AT as date, PROCESSED FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
     });
 
     return res.json({
