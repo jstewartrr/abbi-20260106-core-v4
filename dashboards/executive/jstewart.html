@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.4.12 - Remove processed emails from dashboard automatically -->
+<!-- ABBI Executive Dashboard v9.4.13-DEBUG - Added console debugging -->
 <!-- Force refresh: 2026-01-24T22:33:57Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v9.4.12 | ABBI</title>
+    <title>Executive Dashboard v9.4.13-DEBUG | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-24.v9.4.12</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v9.4.13-DEBUG</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -712,6 +712,11 @@
                 priorityCategories.some(cat => e.categories.includes(cat))
             ).length;
 
+            // DEBUG: Show what we're setting
+            console.log('📊 Setting email counts:');
+            console.log('  UNPROCESSED:', unprocessedCount);
+            console.log('  First email sample:', liveData.emails[0]);
+
             // Update email metrics
             document.getElementById('email-unprocessed').textContent = unprocessedCount || 0;
             document.getElementById('email-urgent-priority').textContent = countByCategory('Urgent/Priority') || 0;
@@ -719,6 +724,9 @@
             document.getElementById('email-to-fyi').textContent = countByCategory('To: FYI') || 0;
             document.getElementById('email-cc-need-response').textContent = countByCategory('CC: Need Response/Action') || 0;
             document.getElementById('email-cc-fyi').textContent = countByCategory('CC: FYI') || 0;
+
+            // DEBUG: Verify it was set
+            console.log('✅ After setting, UNPROCESSED shows:', document.getElementById('email-unprocessed').textContent);
 
             // Render schedule
             renderSchedule();
