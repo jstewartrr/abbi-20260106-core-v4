@@ -110,7 +110,7 @@ export default async function handler(req, res) {
   try {
     const { force } = req.query;
     const forceRefresh = force === 'true';
-    console.log(`📊 Daily Executive Email Briefing (ALL FOLDERS) - force: ${forceRefresh}...`);
+    console.log(`📊 Daily Executive Email Briefing v2 (ALL FOLDERS) - force: ${forceRefresh}...`);
     const startTime = Date.now();
 
     // Define date variables for use throughout the function
