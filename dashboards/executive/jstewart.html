@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.0.5 - Full Email Data Loading -->
-<!-- Force refresh: 2026-01-25T09:00:00Z -->
+<!-- ABBI Executive Dashboard v10.0.6 - DOM Update Debugging -->
+<!-- Force refresh: 2026-01-25T09:15:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Executive Dashboard v10.0.5 | ABBI</title>
+    <title>Executive Dashboard v10.0.6 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.5</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">2026-01-25.v10.0.6</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -728,6 +728,16 @@
                     debugHtml += `<div style="margin-left:16px">- From: ${firstEmail.from}</div>`;
                 }
 
+                // Check if sidebar elements exist
+                debugHtml += `<div style="margin-top:8px;border-top:1px solid #8b5cf6;padding-top:8px">🔍 DOM Check:</div>`;
+                const elementsToCheck = ['email-to-fyi', 'email-unprocessed', 'email-urgent-priority'];
+                elementsToCheck.forEach(id => {
+                    const elem = document.getElementById(id);
+                    const exists = elem ? '✅' : '❌';
+                    const value = elem ? elem.textContent : 'N/A';
+                    debugHtml += `<div style="margin-left:16px">${exists} ${id}: "${value}"</div>`;
+                });
+
                 debugContent.innerHTML = debugHtml;
             }
 
@@ -775,12 +785,28 @@
             ).length;
 
             // Update email metrics
+            console.log('🔧 Updating DOM elements...');
+            const toFyiCount = countByCategory('To: FYI');
+            console.log('🔧 About to set email-to-fyi to:', toFyiCount);
+
+            const toFyiElement = document.getElementById('email-to-fyi');
+            console.log('🔧 email-to-fyi element:', toFyiElement);
+
+            if (toFyiElement) {
+                toFyiElement.textContent = toFyiCount || 0;
+                console.log('✅ Set email-to-fyi.textContent to:', toFyiElement.textContent);
+            } else {
+                console.error('❌ email-to-fyi element not found!');
+            }
+
             document.getElementById('email-unprocessed').textContent = unprocessedCount || 0;
             document.getElementById('email-urgent-priority').textContent = countByCategory('Urgent/Priority') || 0;
             document.getElementById('email-to-need-response').textContent = countByCategory('To: Need Response/Action') || 0;
-            document.getElementById('email-to-fyi').textContent = countByCategory('To: FYI') || 0;
+            // email-to-fyi already updated above with logging
             document.getElementById('email-cc-need-response').textContent = countByCategory('CC: Need Response/Action') || 0;
             document.getElementById('email-cc-fyi').textContent = countByCategory('CC: FYI') || 0;
+
+            console.log('✅ All email metrics updated');
 
             // Update Asana task metrics
             const countByTaskCategory = (cat) => (liveData.tasks || []).filter(t => t.category === cat).length;
