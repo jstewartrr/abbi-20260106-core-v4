@@ -40,46 +40,20 @@ export default async function handler(req, res) {
   // Fetch emails from triage cache in Snowflake (not directly from M365)
   const emailPromises = [
     mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
-      sql: `SELECT
-        EMAIL_ID as "id",
-        SUBJECT as "subject",
-        FROM_NAME as "sender",
-        FROM_EMAIL as "from_email",
-        CATEGORY as "category",
-        PRIORITY as "priority",
-        RECEIVED_AT as "date",
-        PREVIEW as "preview",
-        FULL_BODY as "full_body",
-        AI_SUMMARY as "ai_summary",
-        ACTION_PLAN as "action_plan",
-        RECOMMENDED_RESPONSE as "recommended_response",
-        IS_TO_EMAIL as "is_to_email",
-        NEEDS_RESPONSE as "needs_response",
-        FOLDER as "folder",
-        MAILBOX as "mailbox"
-      FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
-      WHERE PROCESSED = false
-      ORDER BY RECEIVED_AT DESC
-      LIMIT 50`
-    }).then(result => {
-      console.log('[Executive API] Email query result:', result);
-      return { emails: result.data || [] };
-    }).catch(err => {
-      console.error('[Executive API] Email query error:', err);
-      return { emails: [] };
-    })
+      sql: `SELECT EMAIL_ID as id, SUBJECT as subject, FROM_NAME as from, CATEGORY as category, PRIORITY as priority, RECEIVED_AT as date FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS WHERE PROCESSED = false ORDER BY RECEIVED_AT DESC LIMIT 50`
+    }).then(result => ({ emails: result.data || [] })).catch(() => ({ emails: [] }))
   ];
 
-  // Fetch tasks directly from Asana (not from cache)
+  // Fetch tasks from specific Asana projects (assigned to user AND assigned by user)
   const asanaPromises = userConfig.asanaProjects
     ? [
-        // Tasks assigned TO user in MP Project Dashboard
+        // Tasks assigned TO jstewart in MP Project Dashboard
         mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, assignee: userConfig.asanaGid }),
-        // Tasks assigned TO user in Weekly Items
+        // Tasks assigned TO jstewart in Weekly Items
         mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, assignee: userConfig.asanaGid }),
-        // All incomplete tasks in MP Dashboard
+        // All incomplete tasks in MP Dashboard (to find ones assigned BY jstewart)
         mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.mpDashboard, completed: false }),
-        // All incomplete tasks in Weekly Items
+        // All incomplete tasks in Weekly Items (to find ones assigned BY jstewart)
         mcpCall(GATEWAY_URL, 'asana_list_tasks', { project_id: userConfig.asanaProjects.weeklyItems, completed: false })
       ]
     : [Promise.resolve({ tasks: [] })];
@@ -99,38 +73,16 @@ export default async function handler(req, res) {
   const allEmails = [];
   const emailStartIndex = 1;
   const emailEndIndex = emailStartIndex + 1;
-  console.log('[Executive API] Email result status:', results[emailStartIndex]?.status);
-  console.log('[Executive API] Email result value:', results[emailStartIndex]?.value);
   if (results[emailStartIndex]?.status === 'fulfilled') {
     const emails = results[emailStartIndex].value?.emails || [];
-    console.log('[Executive API] Extracted emails count:', emails.length);
-
-    // Map cached emails to dashboard format
-    const mappedEmails = emails.map(e => {
-      // Convert category format: "TO - FYI" -> "To: FYI"
-      let dashboardCategory = e.category || '';
-      if (dashboardCategory.includes(' - ')) {
-        dashboardCategory = dashboardCategory.replace(' - ', ': ').replace(/^(TO|CC)/i, match => match.charAt(0) + match.slice(1).toLowerCase());
-      }
-
-      return {
-        ...e,
-        from: e.sender || e.from,
-        categories: ['Processed', dashboardCategory]  // Dashboard expects categories array
-      };
-    });
-
-    allEmails.push(...mappedEmails);
-  } else {
-    console.error('[Executive API] Email query was rejected:', results[emailStartIndex]?.reason);
+    allEmails.push(...emails);
   }
 
-  // Get tasks from Asana API (4 queries: 2 assigned to user, 2 all incomplete)
+  // Merge Asana tasks from all queries
   const allTasks = [];
   const asanaStartIndex = emailEndIndex;
   const asanaEndIndex = asanaStartIndex + (userConfig.asanaProjects ? 4 : 1);
-  const taskIds = new Set();
-
+  const taskIds = new Set(); // Deduplicate tasks
   for (let i = asanaStartIndex; i < asanaEndIndex; i++) {
     if (results[i]?.status === 'fulfilled') {
       const tasks = results[i].value?.tasks || results[i].value?.data || [];
