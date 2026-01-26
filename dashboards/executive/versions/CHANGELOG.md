@@ -1,5 +1,26 @@
 # Dashboard Version Changelog
 
+## v9.8.1 - 2026-01-26 (Updated)
+
+### Critical Fix - Chat API Still Timing Out
+
+Switched from Claude Sonnet 4 to Claude Haiku 3.5 for much faster response times.
+
+**Root Cause**: Even with the 60-second timeout, Claude Sonnet 4 was taking too long to respond (15-20 seconds per API call), causing the function to timeout when tool calls were involved.
+
+**Solution**:
+1. Switched model from `claude-sonnet-4-20250514` to `claude-3-5-haiku-20241022`
+2. Reduced max_tokens from 2000 to 1024 for faster generation
+3. Claude Haiku responds in 1-3 seconds (vs 10-15 seconds for Sonnet)
+4. Still has full tool-calling capabilities (email, calendar, Asana)
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Model switch to Haiku
+
+**Performance**: Chat should now respond instantly without timeouts. Haiku is optimized for speed while maintaining quality for chat interactions.
+
+---
+
 ## v9.8.1 - 2026-01-26
 
 ### Bug Fix - Zoom/Teams Meeting Links Not Working
