@@ -2,9 +2,9 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 
-// Use working configuration from before
+// Vercel Pro maximum
 export const config = {
-  maxDuration: 300, // 5 minutes
+  maxDuration: 60,
 };
 
 // MCP tool call helper with timeout - routes to M365 gateway for all tools
