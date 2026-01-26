@@ -1,5 +1,24 @@
 # Dashboard Version Changelog
 
+## v9.8.4 - 2026-01-26
+
+### Bug Fix - Emails Auto-Processing on View
+
+Fixed issue where emails were being automatically marked as processed just by viewing them, causing them to disappear without the user clicking "Mark as Read & Close".
+
+**Root Cause**: The `autoMarkEmailRead()` function was not only marking emails as read in Outlook (intended behavior for viewing), but also marking them as processed in HIVE_MIND and removing them from the display (lines 1421-1459).
+
+**Solution**: Removed the auto-processing logic from `autoMarkEmailRead()` function. Now:
+- **Viewing an email** → Only marks as read in Outlook (email stays in dashboard)
+- **Clicking "Mark as Read & Close"** → Marks as processed in HIVE_MIND + removes from dashboard (manual control)
+
+**Files Changed**:
+- `/dashboards/executive/jstewart.html` - Removed auto-processing from autoMarkEmailRead()
+
+**Testing**: View an email (don't click "Mark as Read" button), then refresh the page - the email should still be visible.
+
+---
+
 ## v9.8.3 - 2026-01-26
 
 ### Bug Fix - Chat Missing Email Context for Replies
