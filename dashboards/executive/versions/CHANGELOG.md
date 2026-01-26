@@ -1,5 +1,25 @@
 # Dashboard Version Changelog
 
+## v9.8.6 - 2026-01-26
+
+### Bug Fix - Chat AI Not Using Message ID from Context
+
+Fixed issue where chat AI would ask for message_id instead of using the one already provided in email context.
+
+**Root Cause**: System prompt wasn't explicit enough about extracting and using the message_id from the "EMAIL CONTEXT:" section of the user prompt.
+
+**Solution**: Enhanced system prompt to explicitly instruct Claude to:
+1. Extract the "Message ID:" value from the EMAIL CONTEXT section
+2. Use that exact value as the message_id parameter in m365_reply_email/forward tools
+3. Never ask the user for message_id - it's already provided
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Enhanced system prompt with explicit message_id usage instructions
+
+**Testing**: Ask chat to reply to an email - it should immediately draft and send the reply without asking for message_id.
+
+---
+
 ## v9.8.5 - 2026-01-26
 
 ### Improvement - Summary Format Cleanup
