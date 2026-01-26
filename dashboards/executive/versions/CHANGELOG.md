@@ -1,5 +1,34 @@
 # Dashboard Version Changelog
 
+## v9.8.2 - 2026-01-26
+
+### Bug Fix - Emails Not Being Removed After Processing
+
+Fixed issue where processed emails would reappear on page refresh.
+
+**Root Cause**: When marking an email as read, it was only marked in Outlook and removed from the local display. On page refresh, the email would be fetched again from HIVE_MIND because it wasn't marked as processed there.
+
+**Solution**:
+1. Updated `mark-processed.js` API to mark emails as processed in HIVE_MIND by adding `processed: true` to the DETAILS JSON
+2. Updated `triaged-emails.js` query to exclude processed emails: `AND (DETAILS:processed IS NULL OR DETAILS:processed = FALSE)`
+3. Updated dashboard's `markEmailReadAndClose()` function to call mark-processed API after marking as read
+
+**Flow Now**:
+1. User clicks "Mark as Read" → Email marked as read in Outlook
+2. Email unflagged in M365
+3. Email marked as `processed: true` in HIVE_MIND
+4. Email removed from local display
+5. On refresh, processed emails are excluded from the query
+
+**Files Changed**:
+- `/api/email/mark-processed.js` - Update HIVE_MIND instead of EMAIL_BRIEFING_RESULTS
+- `/api/email/triaged-emails.js` - Exclude processed emails from query
+- `/dashboards/executive/jstewart.html` - Call mark-processed API
+
+**Testing**: Process an email, then refresh the page - it should stay gone.
+
+---
+
 ## v9.8.1 - 2026-01-26 (Updated)
 
 ### Critical Fix - Chat API Still Timing Out

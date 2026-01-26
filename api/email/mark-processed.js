@@ -55,20 +55,28 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`✓ Marking email ${email_id} as processed`);
+    console.log(`✓ Marking email ${email_id} as processed in HIVE_MIND`);
 
-    // Update email in Snowflake cache to set PROCESSED = true
+    // Update email in HIVE_MIND to add processed flag
+    // We update the DETAILS JSON to add processed: true
     const sql = `
-      UPDATE SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
-      SET PROCESSED = true
-      WHERE EMAIL_ID = '${email_id.replace(/'/g, "''")}'
+      UPDATE SOVEREIGN_MIND.HIVE_MIND.ENTRIES
+      SET DETAILS = OBJECT_INSERT(DETAILS, 'processed', TRUE, TRUE),
+          UPDATED_AT = CURRENT_TIMESTAMP()
+      WHERE CATEGORY = 'triaged_email'
+        AND DETAILS:email_id::string = '${email_id.replace(/'/g, "''")}'
     `;
 
-    await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
+    console.log('SQL:', sql);
+
+    const result = await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
+
+    console.log('✅ Email marked as processed in HIVE_MIND');
 
     return res.json({
       success: true,
-      message: 'Email marked as processed'
+      message: 'Email marked as processed',
+      result: result
     });
 
   } catch (error) {

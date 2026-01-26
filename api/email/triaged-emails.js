@@ -22,6 +22,7 @@ export default async function handler(req, res) {
               sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
                     FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
                     WHERE CATEGORY = 'triaged_email'
+                      AND (DETAILS:processed IS NULL OR DETAILS:processed = FALSE)
                     ORDER BY CREATED_AT DESC
                     LIMIT 100`
             }
