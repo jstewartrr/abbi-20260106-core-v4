@@ -78,13 +78,75 @@ Body: ${email.body_content.substring(0, 4000)}
     const anthropicData = await anthropicResponse.json();
     const triageResult = JSON.parse(anthropicData.content[0].text);
 
-    // If spam, return early
+    // If spam, delete and mark as read
     if (triageResult.is_spam) {
+      const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+      let deleted = false;
+      let marked_read = false;
+
+      // Delete from M365
+      try {
+        const deleteResponse = await fetch(M365_GATEWAY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: {
+              name: 'm365_delete_email',
+              arguments: {
+                message_ids: [email.outlook_message_id],
+                permanent: false,
+                user: email.recipient_email || 'jstewart@middleground.com'
+              }
+            },
+            id: Date.now()
+          })
+        });
+
+        if (deleteResponse.ok) {
+          const deleteData = await deleteResponse.json();
+          deleted = deleteData.result?.content?.[0]?.text ? JSON.parse(deleteData.result.content[0].text).success : false;
+        }
+      } catch (error) {
+        console.error('Failed to delete spam:', error.message);
+      }
+
+      // Mark as read
+      try {
+        const markReadResponse = await fetch(M365_GATEWAY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'tools/call',
+            params: {
+              name: 'm365_mark_read',
+              arguments: {
+                message_ids: [email.outlook_message_id],
+                is_read: true,
+                user: email.recipient_email || 'jstewart@middleground.com'
+              }
+            },
+            id: Date.now()
+          })
+        });
+
+        if (markReadResponse.ok) {
+          const markReadData = await markReadResponse.json();
+          marked_read = markReadData.result?.content?.[0]?.text ? JSON.parse(markReadData.result.content[0].text).success : false;
+        }
+      } catch (error) {
+        console.error('Failed to mark spam as read:', error.message);
+      }
+
       return res.json({
         success: true,
         action: 'delete',
         reason: 'spam',
-        triage: triageResult
+        triage: triageResult,
+        deleted: deleted,
+        marked_read: marked_read
       });
     }
 
@@ -141,11 +203,42 @@ Body: ${email.body_content.substring(0, 4000)}
       // Don't fail the whole request, just log the error
     }
 
+    // Mark email as read in M365
+    let marked_read = false;
+    try {
+      const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+      const markReadResponse = await fetch(M365_GATEWAY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'm365_mark_read',
+            arguments: {
+              message_ids: [email.outlook_message_id],
+              is_read: true,
+              user: email.recipient_email || 'jstewart@middleground.com'
+            }
+          },
+          id: Date.now()
+        })
+      });
+
+      if (markReadResponse.ok) {
+        const markReadData = await markReadResponse.json();
+        marked_read = markReadData.result?.content?.[0]?.text ? JSON.parse(markReadData.result.content[0].text).success : false;
+      }
+    } catch (error) {
+      console.error('Failed to mark email as read:', error.message);
+    }
+
     return res.json({
       success: true,
       action: 'triaged',
       triage: triageResult,
-      hive_mind_saved: true
+      hive_mind_saved: true,
+      marked_read: marked_read
     });
 
   } catch (error) {
