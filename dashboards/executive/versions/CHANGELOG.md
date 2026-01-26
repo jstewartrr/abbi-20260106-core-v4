@@ -1,5 +1,27 @@
 # Dashboard Version Changelog
 
+## v9.9.1 - 2026-01-26
+
+### Bug Fix - Fixed Syntax Error in Chat API
+
+Fixed FUNCTION_INVOCATION_FAILED error caused by unescaped backticks in template literal.
+
+**Root Cause**: The system prompt had a markdown code example using ``` (backticks) inside a JavaScript template literal that also uses backticks. This caused a syntax error: "SyntaxError: Unexpected identifier 'Hi'" at line 414.
+
+**Solution**:
+1. Added package.json with "type": "module" for native ESM support
+2. Escaped backticks in markdown example: \`\`\` instead of ```
+
+**Result**: Chat now works with all 12 tools (6 email, 3 calendar, 3 Asana) using Claude Sonnet 4 within 60-second timeout.
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Escaped backticks in system prompt
+- `/package.json` - Added ESM configuration
+
+**Testing**: Chat responds instantly, can list all available tools, ready for email replies.
+
+---
+
 ## v9.9.0 - 2026-01-26
 
 ### Major - Restored Working Chat from 1/24
