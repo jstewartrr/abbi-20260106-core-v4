@@ -119,11 +119,30 @@ export default async function handler(req, res) {
     const allEmails = emailsResult.data || [];
     console.log(`   Found ${allEmails.length} recent emails in RAW.EMAILS`);
 
-    // Filter to only untriaged emails
-    const untriagedEmails = allEmails.filter(email =>
-      email.OUTLOOK_MESSAGE_ID && !triagedIds.has(email.OUTLOOK_MESSAGE_ID)
-    );
-    console.log(`   Need to triage: ${untriagedEmails.length} emails`);
+    // Folders to EXCLUDE from triage (FYI-only folders)
+    const excludedFolders = [
+      'Daily Liquidity',
+      'Sent Items',
+      'Deleted Items',
+      'Drafts',
+      'Junk Email',
+      '01.31 Office Team'
+    ];
+
+    // Filter to only untriaged emails from allowed folders
+    const untriagedEmails = allEmails.filter(email => {
+      // Skip if already triaged
+      if (!email.OUTLOOK_MESSAGE_ID || triagedIds.has(email.OUTLOOK_MESSAGE_ID)) {
+        return false;
+      }
+      // Skip if from excluded folder
+      const folderName = email.FOLDER_NAME || '';
+      if (excludedFolders.some(excluded => folderName.includes(excluded))) {
+        return false;
+      }
+      return true;
+    });
+    console.log(`   Need to triage: ${untriagedEmails.length} emails (excluded ${allEmails.length - untriagedEmails.length - triagedIds.size} from unwanted folders)`);
 
     if (untriagedEmails.length === 0) {
       console.log('\n✅ No new emails to triage');
