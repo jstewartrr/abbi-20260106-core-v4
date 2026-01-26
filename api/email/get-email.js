@@ -1,5 +1,5 @@
-// API to fetch full email content from Outlook
-const M365_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+// API to fetch full email content from Snowflake RAW.EMAILS table
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,18 +13,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Call M365 MCP to get full email
-    const response = await fetch(M365_GATEWAY, {
+    // Fetch from Snowflake RAW.EMAILS table where Make.com stores emails
+    const escapedMessageId = message_id.replace(/'/g, "''");
+
+    const response = await fetch(SNOWFLAKE_GATEWAY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'm365_get_email',
+          name: 'sm_query_snowflake',
           arguments: {
-            user_email: user,
-            message_id: message_id
+            sql: `SELECT BODY_CONTENT, BODY_PREVIEW, SUBJECT, SENDER, RECEIVED_AT
+                  FROM SOVEREIGN_MIND.RAW.EMAILS
+                  WHERE OUTLOOK_MESSAGE_ID = '${escapedMessageId}'
+                  LIMIT 1`
           }
         },
         id: 1
@@ -32,29 +36,31 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      throw new Error(`M365 error: ${response.statusText}`);
+      throw new Error(`Snowflake error: ${response.statusText}`);
     }
 
     const data = await response.json();
     const content = data.result?.content?.[0];
 
     if (!content || content.type !== 'text') {
-      throw new Error('Invalid M365 response');
+      throw new Error('Invalid Snowflake response');
     }
 
-    const emailData = JSON.parse(content.text);
+    const results = JSON.parse(content.text);
 
-    if (!emailData.success) {
-      throw new Error(emailData.error || 'Failed to fetch email');
+    if (!results.success || !results.data || results.data.length === 0) {
+      throw new Error('Email not found in database');
     }
+
+    const emailData = results.data[0];
 
     return res.json({
       success: true,
-      body: emailData.body || emailData.bodyPreview,
-      bodyPreview: emailData.bodyPreview,
-      subject: emailData.subject,
-      from: emailData.from,
-      receivedDateTime: emailData.receivedDateTime
+      body: emailData.BODY_CONTENT || emailData.BODY_PREVIEW || 'No email content available',
+      bodyPreview: emailData.BODY_PREVIEW,
+      subject: emailData.SUBJECT,
+      from: emailData.SENDER,
+      receivedDateTime: emailData.RECEIVED_AT
     });
 
   } catch (error) {
