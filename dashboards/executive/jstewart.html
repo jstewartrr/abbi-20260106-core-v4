@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v9.6.1-AI-FIX - Fix AI summaries showing clearly -->
-<!-- Force refresh: 2026-01-25T07:00:00Z -->
+<!-- ABBI Executive Dashboard v9.7.0-TRIAGE - Connected to triaged emails from Hive Mind -->
+<!-- Force refresh: 2026-01-26T00:55:00Z -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -240,7 +240,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v9.4.14-FIXED</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v9.7.0-TRIAGE</span>
             <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
@@ -480,7 +480,7 @@
     <script>
         const CONFIG = {
             VALID_TOKEN_HASH: '9b74f3a0e5c72a838737cd59fd71a2e62324b4860c236da7b801f980c65f58f0',
-            API_BASE: '/api/executive/jstewart',
+            API_BASE: '/api/email/triaged-emails',
             DEBUG: true  // Enable debug mode
         };
 
@@ -581,7 +581,18 @@
                 console.log('API response data:', data);
 
                 if (data.success) {
-                    liveData = data.data;
+                    // Map triaged emails to expected format
+                    const emails = (data.emails || []).map(email => ({
+                        ...email,
+                        categories: ['Processed', email.category] // Add Processed tag and category
+                    }));
+
+                    liveData = {
+                        emails: emails,
+                        calendar: [],
+                        tasks: [],
+                        activity: []
+                    };
                     console.log('✅ Data loaded successfully:');
                     console.log('  - Emails:', liveData.emails?.length || 0);
                     console.log('  - Calendar:', liveData.calendar?.length || 0);
@@ -1010,38 +1021,21 @@
             // Disable button and show loading state
             btn.disabled = true;
             icon.innerHTML = '<span class="spinner">⟳</span>';
-            text.textContent = 'Triaging...';
+            text.textContent = 'Loading...';
 
             try {
-                console.log('🔄 Manual refresh triggered - calling triage webhook...');
-                const startTime = Date.now();
-
-                // Call triage webhook
-                const response = await fetch('/api/email/triage-webhook', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer dev-secret-12345'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-                console.log('✅ Triage complete:', data);
+                console.log('🔄 Manual refresh triggered - reloading data...');
+                await fetchLiveData();
 
                 // Show success message
                 icon.textContent = '✅';
-                text.textContent = `${data.emails_cached} emails cached`;
+                text.textContent = 'Refreshed';
 
-                // Wait 2 seconds then reload the page to show new emails
+                // Reset button after 2 seconds
                 setTimeout(() => {
-                    console.log('🔄 Reloading dashboard to show updated emails...');
-                    location.reload();
+                    btn.disabled = false;
+                    icon.textContent = '🔄';
+                    text.textContent = 'Refresh Emails';
                 }, 2000);
 
             } catch (error) {
@@ -1195,10 +1189,16 @@
                 // Auto-mark as read based on v6.2 protocol rules
                 autoMarkEmailRead(emailId, currentView);
 
-                // Automatically process with AI (non-blocking)
-                processEmailWithAI(emailId, true).catch(err => {
-                    console.error('AI processing failed:', err);
-                });
+                // Only process with AI if email is not already triaged
+                const email = liveData.emails.find(e => e.id === emailId);
+                const isTriaged = email && email.summary && email.priority && email.classification;
+
+                if (!isTriaged) {
+                    // Automatically process with AI (non-blocking) - only for non-triaged emails
+                    processEmailWithAI(emailId, true).catch(err => {
+                        console.error('AI processing failed:', err);
+                    });
+                }
             }
         }
 
@@ -1872,9 +1872,10 @@
 
             const from = email.from_name || email.from || 'Unknown';
             const subject = email.subject || '(No subject)';
-            const body = email.body || email.bodyPreview || 'No content available';
-            const date = formatEmailTime(email.date || email.receivedDateTime);
-            const fullDate = email.date || email.receivedDateTime ? new Date(email.date || email.receivedDateTime).toLocaleString('en-US', {
+            // Use triaged summary if available, otherwise fallback to body
+            const body = email.summary || email.body || email.bodyPreview || 'No content available';
+            const date = formatEmailTime(email.received_at || email.date || email.receivedDateTime);
+            const fullDate = email.received_at || email.date || email.receivedDateTime ? new Date(email.received_at || email.date || email.receivedDateTime).toLocaleString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -1921,6 +1922,43 @@
             const aiSummary = generateAISummary(email);
             const suggestedResponse = generateSuggestedResponse(email);
 
+            // Check if email is triaged
+            const isTriaged = email.summary && email.priority && email.classification;
+
+            // Generate recommended action plan content
+            let recommendedPlanHTML;
+            if (isTriaged) {
+                if (email.tag === 'Needs Response') {
+                    recommendedPlanHTML = `
+                        <div style="background:var(--bg);border:2px solid var(--red);border-radius:8px;padding:12px;margin-bottom:10px">
+                            <div style="color:var(--red);font-weight:bold;margin-bottom:8px">⚡ ACTION REQUIRED</div>
+                            <div style="color:var(--text)">This email requires a response or action from you.</div>
+                            ${email.action_items && email.action_items.length > 0 ? `
+                                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+                                    <strong>Action Items:</strong>
+                                    <ul style="margin:4px 0;padding-left:20px">
+                                        ${email.action_items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    recommendedPlanHTML = `
+                        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+                            <div style="color:var(--text3);font-weight:bold;margin-bottom:8px">📋 FYI - No Action Required</div>
+                            <div style="color:var(--text2)">This email is for your information only. No response needed.</div>
+                        </div>
+                    `;
+                }
+            } else {
+                recommendedPlanHTML = `
+                    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+                        <div style="font-style:italic;color:var(--text3)">Processing email with AI to generate action plan...</div>
+                    </div>
+                `;
+            }
+
             document.getElementById('view-title').textContent = 'Email: ' + subject;
 
             container.innerHTML = `
@@ -1955,7 +1993,7 @@
                         <div class="email-card-title">AI ANALYSIS</div>
 
                         <div class="ai-section">
-                            <div class="ai-section-label">Topic</div>
+                            <div class="ai-section-label">Classification & Priority</div>
                             <div class="ai-section-content" id="topic-${email.id}">${aiSummary.topic}</div>
                         </div>
 
@@ -1965,7 +2003,7 @@
                         </div>
 
                         <div class="ai-section">
-                            <div class="ai-section-label">Requesting</div>
+                            <div class="ai-section-label">Conversation Context</div>
                             <div class="ai-section-content" id="requesting-${email.id}">${aiSummary.request}</div>
                         </div>
 
@@ -1984,8 +2022,8 @@
                     <div class="response-card" style="border:2px solid var(--purple)">
                         <div class="email-card-title">🎯 RECOMMENDED ACTION PLAN</div>
 
-                        <div id="recommended-plan-${email.id}" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
-                            <div style="font-style:italic;color:var(--text3)">Processing email with AI to generate action plan...</div>
+                        <div id="recommended-plan-${email.id}">
+                            ${recommendedPlanHTML}
                         </div>
 
                         <div style="margin-top:10px;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px">
@@ -2006,14 +2044,56 @@
 
         // Generate AI Summary (enhanced - follows v6.2 protocol)
         function generateAISummary(email) {
-            // Return loading placeholders - real AI analysis will replace these
-            return {
-                topic: '⏳ Loading AI analysis...',
-                summary: 'Claude is analyzing this email. This will take 5-10 seconds...',
-                request: 'Processing...',
-                actionItems: 'Processing...',
-                yourAction: 'Processing...'
-            };
+            // Check if email has triaged data (from Hive Mind)
+            const isTriaged = email.summary && email.priority && email.classification;
+
+            if (isTriaged) {
+                // Email is already triaged - display the data directly
+                const priorityBadge = email.priority === 'HIGH'
+                    ? '<span style="color:var(--red);font-weight:bold">⚠️ HIGH PRIORITY</span>'
+                    : '<span style="color:var(--green)">NORMAL</span>';
+
+                const classificationBadge = email.classification === 'To:'
+                    ? '<span style="background:var(--purple);color:white;padding:2px 8px;border-radius:4px;font-size:.85rem">To:</span>'
+                    : '<span style="background:var(--blue);color:white;padding:2px 8px;border-radius:4px;font-size:.85rem">CC:</span>';
+
+                const tagBadge = email.tag === 'Needs Response'
+                    ? '<span style="background:var(--red);color:white;padding:2px 8px;border-radius:4px;font-size:.85rem;margin-left:6px">⚡ Needs Response</span>'
+                    : '<span style="background:var(--text3);color:white;padding:2px 8px;border-radius:4px;font-size:.85rem;margin-left:6px">📋 FYI</span>';
+
+                // Format action items as HTML list
+                let actionItemsHTML = 'None';
+                if (email.action_items && Array.isArray(email.action_items) && email.action_items.length > 0) {
+                    actionItemsHTML = '<ul style="margin:4px 0;padding-left:20px">' +
+                        email.action_items.map(item => `<li>${escapeHtml(item)}</li>`).join('') +
+                        '</ul>';
+                }
+
+                // Format summary with line breaks preserved (convert \n to <br>)
+                const formattedSummary = email.summary
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold markdown
+                    .replace(/\n/g, '<br>')  // Line breaks
+                    .replace(/- /g, '• ');  // Bullet points
+
+                return {
+                    topic: `${classificationBadge} ${tagBadge}<br><div style="margin-top:8px">${priorityBadge}</div>`,
+                    summary: formattedSummary,
+                    request: email.conversation_context || 'None',
+                    actionItems: actionItemsHTML,
+                    yourAction: email.tag === 'Needs Response'
+                        ? '<span style="color:var(--red);font-weight:bold">⚡ Response Required</span>'
+                        : '<span style="color:var(--text3)">📋 No action needed - FYI only</span>'
+                };
+            } else {
+                // Return loading placeholders - real AI analysis will replace these
+                return {
+                    topic: '⏳ Loading AI analysis...',
+                    summary: 'Claude is analyzing this email. This will take 5-10 seconds...',
+                    request: 'Processing...',
+                    actionItems: 'Processing...',
+                    yourAction: 'Processing...'
+                };
+            }
         }
 
         // Generate suggested response
@@ -2928,14 +3008,14 @@
                     }
                 }, 500);
 
-                console.log(`🌐 Fetching from /api/email/daily-briefing...`);
+                console.log(`🌐 Fetching triaged emails from Hive Mind...`);
 
-                // Add 95s timeout (longer than backend 90s limit)
+                // Add 30s timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 95000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                const res = await fetch(`/api/email/daily-briefing`, {
-                    method: 'POST',
+                const res = await fetch(`/api/email/triaged-emails`, {
+                    method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     signal: controller.signal
                 });
@@ -3659,12 +3739,12 @@
                 currentView = 'daily-briefing';
                 document.getElementById('view-title').textContent = 'Daily Briefing';
 
-                // Add 95s timeout (longer than backend 90s limit)
+                // Add 30s timeout
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 95000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                const res = await fetch(`/api/email/daily-briefing?force=true`, {
-                    method: 'POST',
+                const res = await fetch(`/api/email/triaged-emails`, {
+                    method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     signal: controller.signal
                 });
