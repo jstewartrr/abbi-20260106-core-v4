@@ -53,7 +53,8 @@ async function triageEmail(email) {
 async function markEmailRead(messageId, user = 'jstewart@middleground.com') {
   try {
     await mcpCall('m365_mark_read', {
-      message_id: messageId,
+      message_ids: [messageId],
+      is_read: true,
       user: user
     });
     return true;
@@ -66,7 +67,8 @@ async function markEmailRead(messageId, user = 'jstewart@middleground.com') {
 async function deleteEmail(messageId, user = 'jstewart@middleground.com') {
   try {
     await mcpCall('m365_delete_email', {
-      message_id: messageId,
+      message_ids: [messageId],
+      permanent: false,
       user: user
     });
     return true;
