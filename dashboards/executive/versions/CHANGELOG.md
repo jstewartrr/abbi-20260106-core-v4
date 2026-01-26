@@ -1,5 +1,32 @@
 # Dashboard Version Changelog
 
+## v9.8.10 - 2026-01-26
+
+### Debug - Added Extensive Logging for Email Context Issue
+
+Added comprehensive console logging to diagnose why ABBI isn't seeing email context.
+
+**Logging Added**:
+1. **API Side** (`/api/email/chat-qa.js`):
+   - Whether email_context was received
+   - Message ID, From, Subject values
+   - Confirmation when email context added to system prompt
+   - Warning when no email context provided
+
+2. **Dashboard Side** (`jstewart.html`):
+   - Per-email chat: What's being sent (has_email_context, message_id, question preview)
+   - Main ABBI chat: What's being sent (has_email_context, message_id, question preview, current_view)
+
+**Purpose**: These logs will help us see exactly what's being sent from the dashboard and what's being received by the API, so we can identify where the email context is getting lost.
+
+**Next Steps**: Try using the chat and check browser console + Vercel logs to see the flow.
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Added console logging for debugging
+- `/dashboards/executive/jstewart.html` - Added console logging on send
+
+---
+
 ## v9.8.9 - 2026-01-26
 
 ### Bug Fix - Email Context Not Persisting Across Chat Turns

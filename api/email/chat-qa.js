@@ -228,6 +228,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'Missing question' });
     }
 
+    // DEBUG: Log what we received
+    console.log('📧 [chat-qa] Received email_context:', email_context ? 'YES' : 'NO');
+    if (email_context) {
+      console.log('📧 [chat-qa] Message ID:', email_context.email_id || email_context.message_id);
+      console.log('📧 [chat-qa] From:', email_context.from);
+      console.log('📧 [chat-qa] Subject:', email_context.subject);
+    }
+
     // Build EMAIL CONTEXT block that will be prepended to system prompt
     let emailContextForSystem = '';
     if (email_context) {
@@ -244,6 +252,9 @@ Body Preview: ${email_context.body?.substring(0, 500) || email_context.preview |
 
 When user says "reply", "draft a reply", "send", "forward" - use the Message ID above.
 `;
+      console.log('✅ [chat-qa] Email context added to system prompt');
+    } else {
+      console.log('⚠️ [chat-qa] NO email context provided - ABBI will not be able to reply/forward');
     }
 
     // Build messages with conversation history
