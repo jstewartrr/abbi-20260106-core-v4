@@ -2362,8 +2362,6 @@
             try {
                 // Get email context for ABBI
                 const emailContext = email ? {
-                    message_id: email.id,
-                    email_id: email.id,
                     from: email.from,
                     to: email.to,
                     subject: email.subject,
@@ -3607,11 +3605,7 @@
                         container.innerHTML = html;
 
                         // Store email context for existing chat interface at bottom of page
-                        window.currentEmailContext = {
-                            ...analysis,
-                            message_id: emailId,
-                            email_id: emailId
-                        };
+                        window.currentEmailContext = analysis;
 
                         // Auto-mark email as read (skip for high-priority categories)
                         const mailbox = email.mailbox || 'jstewart@middleground.com';

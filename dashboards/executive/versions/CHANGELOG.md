@@ -1,5 +1,35 @@
 # Dashboard Version Changelog
 
+## v9.8.3 - 2026-01-26
+
+### Bug Fix - Chat Missing Email Context for Replies
+
+Fixed issue where chat AI couldn't reply to emails because it didn't have the message_id.
+
+**Root Cause**: When passing email context to the chat API, the `message_id` field was not included. The chat could analyze emails but couldn't reply/forward because it didn't know which email to act on.
+
+**Solution**:
+1. Added `message_id` and `email_id` to email context in per-email chat (line 2364-2373)
+2. Added `message_id` and `email_id` to `window.currentEmailContext` for main chat panel (line 3609-3613)
+3. Restored full chat API from 1/24 working version with tool calling capabilities
+4. Simplified chat API - moved tools array outside handler, kept only essential email tools (send/reply/forward)
+5. Used Claude Haiku 3.5 for speed, 60 second maxDuration for Vercel Pro
+
+**Chat Now Works**:
+- ✅ Reply to emails
+- ✅ Send new emails
+- ✅ Forward emails
+- ✅ Add CC/To recipients
+- ✅ Professional business email formatting
+
+**Files Changed**:
+- `/dashboards/executive/jstewart.html` - Added message_id to email contexts
+- `/api/email/chat-qa.js` - Restored working tool calling with essential email tools
+
+**Testing**: Open an email, ask chat to reply - it should draft and send the reply.
+
+---
+
 ## v9.8.2 - 2026-01-26
 
 ### Bug Fix - Emails Not Being Removed After Processing
