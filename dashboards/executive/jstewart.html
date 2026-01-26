@@ -1271,6 +1271,54 @@
             }
         }
 
+        // Toggle original email view (fetch and display)
+        async function toggleOriginalEmail(emailId) {
+            const container = document.getElementById(`original-email-${emailId}`);
+            const icon = document.getElementById(`email-toggle-icon-${emailId}`);
+
+            if (container.style.display === 'none') {
+                // Show and fetch if not already loaded
+                container.style.display = 'block';
+                icon.textContent = '▲';
+
+                // Check if already loaded
+                if (container.dataset.loaded !== 'true') {
+                    try {
+                        // Fetch original email from Outlook
+                        const email = liveData.emails.find(e => e.id === emailId);
+                        const response = await fetch('/api/email/get-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message_id: email.outlook_message_id || emailId,
+                                user: 'jstewart@middleground.com'
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch email');
+                        }
+
+                        const data = await response.json();
+                        const emailBody = data.body || data.bodyPreview || 'No email content available';
+
+                        // Format and display
+                        const formattedBody = escapeHtml(emailBody).replace(/\n/g, '<br>');
+                        container.innerHTML = `<div style="color:var(--text);font-size:.9rem;line-height:1.6">${formattedBody}</div>`;
+                        container.dataset.loaded = 'true';
+
+                    } catch (error) {
+                        console.error('Error fetching original email:', error);
+                        container.innerHTML = `<div style="color:var(--red)">Error loading email: ${error.message}</div>`;
+                    }
+                }
+            } else {
+                // Hide
+                container.style.display = 'none';
+                icon.textContent = '▼';
+            }
+        }
+
         // Auto-mark email as read following v6.2 protocol
         async function autoMarkEmailRead(emailId, viewOrMailbox, explicitMailbox = null) {
             // DISABLED: Auto-flagging removed - user will manually flag if needed
@@ -1872,21 +1920,6 @@
 
             const from = email.from_name || email.from || 'Unknown';
             const subject = email.subject || '(No subject)';
-
-            // Format body content with proper HTML rendering
-            let bodyHTML;
-            if (email.summary) {
-                // Triaged email - format the summary with HTML
-                bodyHTML = email.summary
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold markdown
-                    .replace(/\n/g, '<br>')  // Line breaks
-                    .replace(/- /g, '&bull; ');  // Bullet points
-            } else {
-                // Non-triaged email - escape HTML for safety
-                const rawBody = email.body || email.bodyPreview || 'No content available';
-                bodyHTML = escapeHtml(rawBody).replace(/\n/g, '<br>');
-            }
-
             const date = formatEmailTime(email.received_at || email.date || email.receivedDateTime);
             const fullDate = email.received_at || email.date || email.receivedDateTime ? new Date(email.received_at || email.date || email.receivedDateTime).toLocaleString('en-US', {
                 weekday: 'long',
@@ -1987,18 +2020,33 @@
                         </button>
                     </div>
 
-                    <!-- Card 1: Email Content -->
+                    <!-- Card 1: Email Metadata -->
                     <div class="email-card">
-                        <div class="email-card-title">EMAIL CONTENT</div>
+                        <div class="email-card-title">EMAIL METADATA</div>
                         <div class="email-detail-header">
                             <div class="email-detail-from">From: ${escapeHtml(from)}</div>
                             ${toRecipientsHTML}
                             ${ccRecipientsHTML}
                             <div class="email-detail-subject"><strong>Subject:</strong> ${escapeHtml(subject)}</div>
                             <div class="email-detail-date">${fullDate}</div>
+                            <div class="email-detail-from" style="color:var(--text2);font-size:.75rem">Folder: ${escapeHtml(email.folder_name || email.folder || 'Unknown')}</div>
                             ${attachmentsHTML}
                         </div>
-                        <div class="email-body-content">${bodyHTML}</div>
+
+                        <!-- Collapsible Original Email Section -->
+                        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+                            <button
+                                class="response-btn"
+                                onclick="toggleOriginalEmail('${email.id}')"
+                                style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between"
+                            >
+                                <span>📧 View Original Email</span>
+                                <span id="email-toggle-icon-${email.id}">▼</span>
+                            </button>
+                            <div id="original-email-${email.id}" style="display:none;margin-top:12px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:400px;overflow-y:auto">
+                                <div style="color:var(--text3);font-style:italic">Loading original email...</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Card 2: AI Analysis -->
