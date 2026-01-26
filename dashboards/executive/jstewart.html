@@ -241,7 +241,6 @@
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
             <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v9.7.0-TRIAGE</span>
-            <span id="contact-sync-time" style="font-size:.75rem;color:var(--text3);margin-left:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;display:none" title="Last contact database sync">📇 Synced: <span id="contact-sync-timestamp">--</span></span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -805,14 +804,32 @@
                 // Detect Zoom or Teams meeting links
                 const location = event.location || '';
                 const body = event.body || '';
-                const zoomMatch = (location + ' ' + body).match(/(https:\/\/[^\s]*zoom\.us[^\s]*)/i);
-                const teamsMatch = (location + ' ' + body).match(/(https:\/\/teams\.microsoft\.com[^\s]*)/i);
+
+                // Check for teams_url field first (M365 API provides this)
+                let meetingUrl = event.teams_url || null;
+                let isTeams = !!event.teams_url;
+
+                // If no teams_url, search for Zoom/Teams links in location and body
+                if (!meetingUrl) {
+                    const zoomMatch = (location + ' ' + body).match(/(https:\/\/[^\s]*zoom\.us[^\s]*)/i);
+                    const teamsMatch = (location + ' ' + body).match(/(https:\/\/teams\.microsoft\.com[^\s]*)/i);
+
+                    if (zoomMatch) {
+                        meetingUrl = zoomMatch[1];
+                        isTeams = false;
+                    } else if (teamsMatch) {
+                        meetingUrl = teamsMatch[1];
+                        isTeams = true;
+                    }
+                }
 
                 let joinButton = '';
-                if (zoomMatch) {
-                    joinButton = '<a href="' + zoomMatch[1] + '" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:2px;padding:3px 8px;background:var(--blue);color:#fff;border-radius:4px;font-size:.7rem;font-weight:700;text-decoration:none;min-width:24px;text-align:center">Z</a>';
-                } else if (teamsMatch) {
-                    joinButton = '<a href="' + teamsMatch[1] + '" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:2px;padding:3px 8px;background:var(--purple);color:#fff;border-radius:4px;font-size:.7rem;font-weight:700;text-decoration:none;min-width:24px;text-align:center">T</a>';
+                if (meetingUrl) {
+                    if (isTeams) {
+                        joinButton = '<a href="' + meetingUrl + '" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:2px;padding:3px 8px;background:var(--purple);color:#fff;border-radius:4px;font-size:.7rem;font-weight:700;text-decoration:none;min-width:24px;text-align:center">T</a>';
+                    } else {
+                        joinButton = '<a href="' + meetingUrl + '" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:2px;padding:3px 8px;background:var(--blue);color:#fff;border-radius:4px;font-size:.7rem;font-weight:700;text-decoration:none;min-width:24px;text-align:center">Z</a>';
+                    }
                 }
 
                 // Add attachment button if meeting has attachments
