@@ -1,5 +1,41 @@
 # Dashboard Version Changelog
 
+## v9.9.3 - 2026-01-26
+
+### Bug Fix - Unwanted Folders Being Synced to Hive Mind
+
+Fixed issue where emails from "Daily Liquidity" and other FYI-only folders were being triaged and appearing in the dashboard.
+
+**Root Cause**: The `auto-triage.js` process reads ALL emails from `SOVEREIGN_MIND.RAW.EMAILS` table without any folder filtering. This meant emails from any folder (including Daily Liquidity, Office Team, etc.) would be triaged and added to HIVE_MIND.
+
+**Solution**: Added folder exclusion list to `auto-triage.js` to skip unwanted folders:
+- Daily Liquidity
+- Sent Items
+- Deleted Items
+- Drafts
+- Junk Email
+- 01.31 Office Team
+
+**Note**: The `auto-triage-v2.js` already uses a folder whitelist approach and only processes:
+- Inbox
+- 01.01 John
+- 01.02 Scot
+- 01.03 Tom
+- 01.04 Kathryn
+- 01.05 Will
+- 01.13 MC
+- 01.24 N Transaction Team
+- 01.26 N Operations Team
+- 01.28 Human Capital
+- 02.05 Dechert
+
+**Files Changed**:
+- `/api/email/auto-triage.js` - Added excludedFolders filter (lines 122-138)
+
+**Impact**: Future auto-triage runs will skip emails from FYI-only folders. Existing emails in HIVE_MIND from those folders will remain until manually marked as processed.
+
+---
+
 ## v9.9.2 - 2026-01-26
 
 ### Critical Fix - Email Reply Tool Not Working
