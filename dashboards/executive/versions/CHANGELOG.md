@@ -1,5 +1,26 @@
 # Dashboard Version Changelog
 
+## v9.8.8 - 2026-01-26
+
+### Bug Fix - ABBI Still Asking for Message ID
+
+Fixed issue where ABBI would ask for message_id even when "draft a reply" command was given with email context.
+
+**Root Cause**: The prompt wasn't clear that "draft a reply" is an ACTION COMMAND (execute immediately), not a QUESTION (provide recommendation). ABBI was treating it as advisory mode instead of execution mode.
+
+**Solution**: Enhanced system prompt to:
+1. **Always check for EMAIL CONTEXT first** before responding to any request
+2. **Explicit keyword list** for action commands: "reply", "draft a reply", "send", "forward", "respond" = EXECUTE NOW
+3. **Clear examples** showing "draft a reply to all that says..." means execute m365_reply_email immediately
+4. **Questions vs Actions** - Separated advisory mode ("what should I say") from execution mode ("draft a reply")
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Enhanced prompt with explicit action keywords and EMAIL CONTEXT checking
+
+**Testing**: Say "draft a reply to all that says [message]" - ABBI should immediately execute the reply without asking for message_id.
+
+---
+
 ## v9.8.7 - 2026-01-26
 
 ### Enhancement - Comprehensive System Prompt for ABBI
