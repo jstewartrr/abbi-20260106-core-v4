@@ -1,5 +1,32 @@
 # Dashboard Version Changelog
 
+## v9.8.11 - 2026-01-26
+
+### Bug Fix - Main ABBI Chat Missing Email Context
+
+Fixed issue where main ABBI chat at bottom of page couldn't reply to emails because it wasn't finding the email context.
+
+**Root Cause**: The `getCurrentViewContext()` function relied solely on `window.currentEmailContext` which is only set when rendering an email's full analysis. If the user opened an email but this variable wasn't set, the main ABBI chat had no email context.
+
+**Solution**: Added fallback logic to `getCurrentViewContext()`:
+1. First try to use `window.currentEmailContext` (preferred)
+2. If that's null, check if `expandedEmailId` exists (meaning an email is currently displayed)
+3. Build email context from the email object in `liveData.emails`
+4. Include all necessary fields: message_id, email_id, from, to, subject, body, preview, received, category, priority
+
+**Impact**: Now when you have an email open and use the main ABBI chat at the bottom, it will have the email context and can reply/forward emails.
+
+**Files Changed**:
+- `/dashboards/executive/jstewart.html` - Enhanced `getCurrentViewContext()` with fallback logic
+
+**Testing**:
+1. Open an email
+2. Use the main ABBI chat at the bottom
+3. Say "draft a reply to all that says [message]"
+4. ABBI should now execute the reply
+
+---
+
 ## v9.8.10 - 2026-01-26
 
 ### Debug - Added Extensive Logging for Email Context Issue
