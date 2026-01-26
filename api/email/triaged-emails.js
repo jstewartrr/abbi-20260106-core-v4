@@ -55,15 +55,32 @@ export default async function handler(req, res) {
     }
 
     const snowflakeData = await snowflakeResponse.json();
+
+    // Check for MCP error
+    if (snowflakeData.error) {
+      console.error('Snowflake MCP error:', snowflakeData.error);
+      throw new Error(`Snowflake error: ${snowflakeData.error.message || JSON.stringify(snowflakeData.error)}`);
+    }
+
     const content = snowflakeData.result?.content?.[0];
 
     if (!content || content.type !== 'text') {
+      console.error('Invalid Snowflake response structure:', JSON.stringify(snowflakeData).substring(0, 500));
       throw new Error('Invalid Snowflake response');
     }
 
-    const results = JSON.parse(content.text);
+    console.log('Snowflake content.text:', content.text.substring(0, 200));
+
+    let results;
+    try {
+      results = JSON.parse(content.text);
+    } catch (parseError) {
+      console.error('Failed to parse Snowflake response:', content.text);
+      throw new Error(`Snowflake returned invalid JSON: ${content.text.substring(0, 100)}`);
+    }
 
     if (!results.success || !results.data) {
+      console.error('Snowflake query failed:', results.error);
       throw new Error(results.error || 'No data returned from Hive Mind');
     }
 
