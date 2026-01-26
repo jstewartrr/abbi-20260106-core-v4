@@ -37,12 +37,30 @@ export default async function handler(req, res) {
   const userConfig = USERS[user];
   if (!userConfig) return res.status(404).json({ success: false, error: 'User not found' });
 
-  // Fetch emails from multiple accounts if configured
-  const emailPromises = userConfig.emailAccounts
-    ? userConfig.emailAccounts.map(emailAddr =>
-        mcpCall(GATEWAY_URL, 'm365_read_emails', { user: emailAddr, unread_only: true, top: 20 })
-      )
-    : [mcpCall(GATEWAY_URL, 'm365_read_emails', { user: userConfig.email, unread_only: true, top: 10 })];
+  // Fetch triaged emails from Snowflake cache (NOT directly from M365)
+  // Triage process runs periodically and caches analyzed emails
+  const emailQuery = `
+    SELECT
+      EMAIL_ID as id,
+      SUBJECT as subject,
+      FROM_NAME as from_name,
+      FROM_EMAIL as from,
+      PREVIEW as preview,
+      CATEGORY as category,
+      PRIORITY as priority,
+      RECEIVED_AT as date,
+      PROCESSED,
+      AI_SUMMARY as ai_summary,
+      ACTION_PLAN as action_plan,
+      RECOMMENDED_RESPONSE as recommended_response,
+      FULL_BODY as body,
+      NEEDS_RESPONSE as needs_response,
+      IS_TO_EMAIL as is_to_email
+    FROM SOVEREIGN_MIND.RAW.EMAIL_BRIEFING_RESULTS
+    WHERE PROCESSED = false
+    ORDER BY RECEIVED_AT DESC
+    LIMIT 100
+  `;
 
   // Fetch tasks assigned to this user across all projects
   const asanaPromises = userConfig.asanaGid
@@ -55,8 +73,8 @@ export default async function handler(req, res) {
   const results = await Promise.allSettled([
     // Calendar from jstewart only
     mcpCall(GATEWAY_URL, 'm365_list_calendar_events', { user: userConfig.email }),
-    // Emails from both accounts
-    ...emailPromises,
+    // Triaged emails from Snowflake cache
+    mcpCall(SNOWFLAKE_URL, 'sm_query_snowflake', { sql: emailQuery }),
     // Asana tasks
     ...asanaPromises,
     // Hive Mind activity

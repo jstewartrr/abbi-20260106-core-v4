@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Dashboard Data Flow</title>
+</head>
+<body>
+    <h1>Dashboard Data Test</h1>
+    <pre id="output"></pre>
+    <script>
+        async function test() {
+            const output = document.getElementById('output');
+            output.textContent = 'Loading...\n';
+
+            try {
+                // Call the API
+                const response = await fetch('/api/email/triaged-emails');
+                const data = await response.json();
+
+                output.textContent += 'API Response:\n' + JSON.stringify(data, null, 2) + '\n\n';
+
+                // Process like the dashboard does
+                const emails = (data.emails || []).map(email => ({
+                    ...email,
+                    categories: ['Processed', email.category]
+                }));
+
+                output.textContent += 'Processed Emails:\n' + JSON.stringify(emails, null, 2) + '\n\n';
+
+                // Count by category like the dashboard does
+                const countByCategory = (categoryName) => {
+                    return emails.filter(e =>
+                        e.categories &&
+                        e.categories.includes('Processed') &&
+                        e.categories.includes(categoryName)
+                    ).length;
+                };
+
+                const counts = {
+                    'Urgent/Priority': countByCategory('Urgent/Priority'),
+                    'To: Need Response/Action': countByCategory('To: Need Response/Action'),
+                    'To: FYI': countByCategory('To: FYI'),
+                    'CC: Need Response/Action': countByCategory('CC: Need Response/Action'),
+                    'CC: FYI': countByCategory('CC: FYI')
+                };
+
+                output.textContent += 'Category Counts:\n' + JSON.stringify(counts, null, 2) + '\n\n';
+
+                output.textContent += '✅ TEST PASSED - Dashboard should show:\n';
+                output.textContent += `- Urgent/Priority: ${counts['Urgent/Priority']}\n`;
+                output.textContent += `- Total Emails: ${emails.length}\n`;
+
+            } catch (error) {
+                output.textContent += '❌ ERROR: ' + error.message;
+            }
+        }
+
+        test();
+    </script>
+</body>
+</html>

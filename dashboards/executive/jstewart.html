@@ -518,7 +518,7 @@
             ]
         };
         
-        let currentView = 'email-unprocessed'; // Show unprocessed emails by default
+        let currentView = 'email-urgent-priority'; // Show urgent/priority emails by default
         let expandedEmailId = null;
         let expandedMeetingId = null;
         let leftPaneCollapsed = false;
@@ -1035,6 +1035,10 @@
             try {
                 console.log('🔄 Manual refresh triggered - reloading data...');
                 await fetchLiveData();
+
+                // Re-render the current view with fresh data
+                console.log('🔄 Re-rendering content with fresh data...');
+                renderContent();
 
                 // Show success message
                 icon.textContent = '✅';
