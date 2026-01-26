@@ -1,4 +1,4 @@
-// Simple API to fetch triaged emails from Hive Mind via Snowflake
+// Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
 const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 export default async function handler(req, res) {
@@ -7,26 +7,47 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Query Hive Mind table directly via Snowflake
-    const snowflakeResponse = await fetch(SNOWFLAKE_GATEWAY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: {
-          name: 'sm_query_snowflake',
-          arguments: {
-            sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
-                  FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
-                  WHERE CATEGORY = 'triaged_email'
-                  ORDER BY CREATED_AT DESC
-                  LIMIT 100`
-          }
-        },
-        id: 1
+    // Fetch emails and calendar in parallel
+    const [snowflakeResponse, calendarResponse] = await Promise.all([
+      // Query Hive Mind table directly via Snowflake
+      fetch(SNOWFLAKE_GATEWAY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'sm_query_snowflake',
+            arguments: {
+              sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
+                    FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
+                    WHERE CATEGORY = 'triaged_email'
+                    ORDER BY CREATED_AT DESC
+                    LIMIT 100`
+            }
+          },
+          id: 1
+        })
+      }),
+      // Fetch calendar events from M365 (today and tomorrow)
+      fetch(SNOWFLAKE_GATEWAY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'm365_list_calendar_events',
+            arguments: {
+              user: 'jstewart@middleground.com',
+              start_date: new Date().toISOString().split('T')[0],
+              end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            }
+          },
+          id: 2
+        })
       })
-    });
+    ]);
 
     if (!snowflakeResponse.ok) {
       throw new Error(`Snowflake error: ${snowflakeResponse.statusText}`);
@@ -43,6 +64,17 @@ export default async function handler(req, res) {
 
     if (!results.success || !results.data) {
       throw new Error(results.error || 'No data returned from Hive Mind');
+    }
+
+    // Parse calendar response
+    let calendarEvents = [];
+    if (calendarResponse.ok) {
+      const calendarData = await calendarResponse.json();
+      const calendarContent = calendarData.result?.content?.[0];
+      if (calendarContent && calendarContent.type === 'text') {
+        const calendarResults = JSON.parse(calendarContent.text);
+        calendarEvents = calendarResults.events || calendarResults.value || [];
+      }
     }
 
     // Transform Hive Mind entries to email format expected by dashboard
@@ -93,6 +125,7 @@ export default async function handler(req, res) {
     return res.json({
       success: true,
       emails: emails,
+      calendar: calendarEvents,
       total_emails: emails.length,
       emails_requiring_attention: emails.filter(e => e.tag === 'Needs Response').length,
       emails_reviewed: emails.length,
