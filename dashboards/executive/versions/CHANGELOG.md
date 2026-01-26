@@ -1,5 +1,39 @@
 # Dashboard Version Changelog
 
+## v9.9.2 - 2026-01-26
+
+### Critical Fix - Email Reply Tool Not Working
+
+Fixed critical bug where m365_reply_email and all other M365/Asana tools would fail silently because the tool names didn't match what the gateway expects.
+
+**Root Cause**: The M365 gateway expects tool names like `reply_email`, `send_email`, `create_event`, etc. (without prefix), but the code was sending `m365_reply_email`, `m365_send_email`, `m365_create_event` with the prefix. This caused the gateway to return "tool not found" errors.
+
+**Solution**: Modified `mcpCall()` function to strip the `m365_` and `asana_` prefixes before sending to the gateway:
+```javascript
+const actualToolName = tool.replace(/^(m365|asana)_/, '');
+```
+
+**Impact**: All email tools now work correctly:
+- ✅ m365_reply_email → reply_email
+- ✅ m365_send_email → send_email
+- ✅ m365_forward_email → forward_email
+- ✅ m365_read_emails → read_emails
+- ✅ m365_search_emails → search_emails
+- ✅ m365_get_email → get_email
+- ✅ m365_create_event → create_event
+- ✅ m365_update_event → update_event
+- ✅ m365_delete_event → delete_event
+- ✅ asana_create_task → create_task
+- ✅ asana_update_task → update_task
+- ✅ asana_create_project → create_project
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Fixed mcpCall to strip tool name prefix (line 13)
+
+**Testing**: Open an email, say "reply to all and say [message]" - ABBI will now successfully send the reply.
+
+---
+
 ## v9.9.1 - 2026-01-26
 
 ### Bug Fix - Fixed Syntax Error in Chat API
