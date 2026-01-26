@@ -1872,8 +1872,21 @@
 
             const from = email.from_name || email.from || 'Unknown';
             const subject = email.subject || '(No subject)';
-            // Use triaged summary if available, otherwise fallback to body
-            const body = email.summary || email.body || email.bodyPreview || 'No content available';
+
+            // Format body content with proper HTML rendering
+            let bodyHTML;
+            if (email.summary) {
+                // Triaged email - format the summary with HTML
+                bodyHTML = email.summary
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold markdown
+                    .replace(/\n/g, '<br>')  // Line breaks
+                    .replace(/- /g, '&bull; ');  // Bullet points
+            } else {
+                // Non-triaged email - escape HTML for safety
+                const rawBody = email.body || email.bodyPreview || 'No content available';
+                bodyHTML = escapeHtml(rawBody).replace(/\n/g, '<br>');
+            }
+
             const date = formatEmailTime(email.received_at || email.date || email.receivedDateTime);
             const fullDate = email.received_at || email.date || email.receivedDateTime ? new Date(email.received_at || email.date || email.receivedDateTime).toLocaleString('en-US', {
                 weekday: 'long',
@@ -1985,7 +1998,7 @@
                             <div class="email-detail-date">${fullDate}</div>
                             ${attachmentsHTML}
                         </div>
-                        <div class="email-body-content">${escapeHtml(body)}</div>
+                        <div class="email-body-content">${bodyHTML}</div>
                     </div>
 
                     <!-- Card 2: AI Analysis -->
