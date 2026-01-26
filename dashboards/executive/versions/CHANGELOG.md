@@ -1,5 +1,47 @@
 # Dashboard Version Changelog
 
+## v9.8.7 - 2026-01-26
+
+### Enhancement - Comprehensive System Prompt for ABBI
+
+Enhanced ABBI's system prompt with comprehensive context about her role, John's identity, and Hive Mind capabilities.
+
+**Changes**:
+Merged the simplified working prompt with the original comprehensive prompt to include:
+
+1. **Role & Identity**:
+   - ABBI as Executive Dashboard AI assistant
+   - John Stewart's profile (Managing Partner at Middleground Capital)
+   - Her role as executor, not just advisor
+
+2. **Hive Mind Integration**:
+   - Explanation of email triage system
+   - AI analysis: classification, priority, summaries
+   - Background/Purpose/Key Points format
+   - HIVE_MIND database storage
+
+3. **Tools & Capabilities**:
+   - Email actions (send, reply with CC/To, forward)
+   - Message ID extraction from context
+   - Adding recipients to replies
+
+4. **Professional Standards**:
+   - Detailed email formatting guidelines
+   - Executive tone and style requirements
+   - Email analysis format for recommendations
+
+5. **Work Process**:
+   - Action commands (execute immediately)
+   - Questions (provide recommendations only)
+   - Clear examples of usage
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Enhanced system prompt with comprehensive context
+
+**Result**: ABBI now has full context about her role, John's needs, Hive Mind capabilities, and professional standards while maintaining the reliable simplified tool set.
+
+---
+
 ## v9.8.6 - 2026-01-26
 
 ### Bug Fix - Chat AI Not Using Message ID from Context
