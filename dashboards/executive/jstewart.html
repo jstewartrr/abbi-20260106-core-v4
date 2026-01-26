@@ -1302,9 +1302,22 @@
                         const data = await response.json();
                         const emailBody = data.body || data.bodyPreview || 'No email content available';
 
-                        // Format and display
-                        const formattedBody = escapeHtml(emailBody).replace(/\n/g, '<br>');
-                        container.innerHTML = `<div style="color:var(--text);font-size:.9rem;line-height:1.6">${formattedBody}</div>`;
+                        // Check if email is HTML or plain text
+                        const isHTML = emailBody.trim().startsWith('<') || emailBody.includes('</');
+
+                        if (isHTML) {
+                            // Display HTML email in iframe for proper rendering
+                            container.innerHTML = `<iframe
+                                srcdoc="${emailBody.replace(/"/g, '&quot;')}"
+                                style="width:100%;min-height:400px;border:none;background:white;color:black"
+                                sandbox="allow-same-origin"
+                            ></iframe>`;
+                        } else {
+                            // Display plain text email with line breaks
+                            const formattedBody = escapeHtml(emailBody).replace(/\n/g, '<br>');
+                            container.innerHTML = `<div style="color:var(--text);font-size:.9rem;line-height:1.6">${formattedBody}</div>`;
+                        }
+
                         container.dataset.loaded = 'true';
 
                     } catch (error) {
