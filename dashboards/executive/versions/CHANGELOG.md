@@ -1,5 +1,27 @@
 # Dashboard Version Changelog
 
+## v9.8.0 - 2026-01-26 (Updated)
+
+### Bug Fix - Chat API FUNCTION_INVOCATION_FAILED
+Fixed the chat/ABBI AI functionality that was failing with FUNCTION_INVOCATION_FAILED error.
+
+**Root Cause**: The chat API had `maxDuration: 300` seconds (5 minutes), which exceeds Vercel Pro's 60-second limit for serverless functions.
+
+**Solution**:
+1. Reduced `maxDuration` from 300s to 60s (Vercel Pro limit)
+2. Added aggressive timeouts to Claude API calls:
+   - Initial Claude call: 45 second timeout
+   - Tool execution response: 30 second timeout
+   - MCP tool calls: 20 second timeout
+3. Implemented `callClaudeWithTimeout()` helper function with proper AbortController handling
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Timeout optimizations
+
+**Testing**: Chat should now work without timing out. The AI can still execute all tools (email, calendar, Asana) within the 60-second window.
+
+---
+
 ## v9.8.0 - 2026-01-26
 
 ### Changes
