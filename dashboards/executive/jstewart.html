@@ -1492,25 +1492,26 @@
                 return email.category === category;
             });
 
-            // Render filtered list
-            let html = '<div style="padding:20px">';
-            html += `<h2 style="margin-bottom:20px">${category} (${filteredEmails.length})</h2>`;
-
             if (filteredEmails.length === 0) {
+                let html = '<div style="padding:20px">';
+                html += `<h2 style="margin-bottom:20px">${category} (0)</h2>`;
                 html += '<div style="color:var(--text2);padding:20px;text-align:center">No emails in this category</div>';
-            } else {
-                filteredEmails.forEach(email => {
-                    html += `<div onclick="processEmail('${email.id}')" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='var(--card)'">`;
-                    html += `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(email.subject || 'No subject')}</div>`;
-                    html += `<div style="font-size:.8rem;color:var(--text2)">From: ${escapeHtml(email.from)} • ${email.folder || 'Inbox'}</div>`;
-                    html += '</div>';
-                });
+                html += '<button onclick="switchView(\'daily-briefing\')" style="margin-top:20px;padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:6px;cursor:pointer">← Back to All Categories</button>';
+                html += '</div>';
+                container.innerHTML = html;
+                return;
             }
 
-            html += '<button onclick="switchView(\'daily-briefing\')" style="margin-top:20px;padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:6px;cursor:pointer">← Back to All Categories</button>';
-            html += '</div>';
+            // Replace allBriefingEmails with filtered list for category navigation
+            // Store original for restoration when going back
+            if (!window.originalAllBriefingEmails) {
+                window.originalAllBriefingEmails = window.allBriefingEmails;
+            }
+            window.allBriefingEmails = filteredEmails;
 
-            container.innerHTML = html;
+            // Auto-expand the first email in the category
+            expandedEmailId = filteredEmails[0].id;
+            processEmail(filteredEmails[0].id);
         }
 
         // Process all emails with AI triage
@@ -1914,6 +1915,14 @@
                         liveData.emails = liveData.emails.filter(e => e.id !== emailId);
                         console.log(`   Email removed from local data. Remaining: ${liveData.emails.length}`);
                     }
+
+                    // Remove from allBriefingEmails if it exists
+                    if (window.allBriefingEmails) {
+                        window.allBriefingEmails = window.allBriefingEmails.filter(e => e.id !== emailId);
+                    }
+
+                    // Update sidebar category counts
+                    updateSidebarCounts();
 
                     // Open next email or close and return to list
                     if (nextEmail) {
@@ -3111,6 +3120,12 @@
         // Generate and display daily briefing
         async function generateDailyBriefing() {
             console.log(`🚀 generateDailyBriefing() called (ALL FOLDERS)`);
+
+            // Restore original email list if we were viewing a filtered category
+            if (window.originalAllBriefingEmails) {
+                window.allBriefingEmails = window.originalAllBriefingEmails;
+                window.originalAllBriefingEmails = null;
+            }
 
             // Clear preload cache when returning to briefing view
             window.emailPreloadCache = {};
