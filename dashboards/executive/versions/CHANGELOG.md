@@ -1,5 +1,32 @@
 # Dashboard Version Changelog
 
+## v9.8.5 - 2026-01-26
+
+### Improvement - Summary Format Cleanup
+
+Updated email summary format in triage process for better readability.
+
+**Changes**:
+1. Removed "Detailed multi-line summary with:" prefix
+2. Reordered fields to: Background → Purpose → Key Points
+3. Added empty lines between sections for better visual separation
+
+**New Format**:
+```
+- **Background:** context if available
+
+- **Purpose:** ...
+
+- **Key Points:** bullet list
+```
+
+**Files Changed**:
+- `/api/email/triage.js` - Updated Claude AI prompt for summary format
+
+**Note**: This will apply to newly triaged emails going forward.
+
+---
+
 ## v9.8.4 - 2026-01-26
 
 ### Bug Fix - Emails Auto-Processing on View

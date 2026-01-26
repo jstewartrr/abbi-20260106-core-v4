@@ -55,7 +55,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
   "from_email": "email@domain.com",
   "to_recipients": ["Name <email>", ...] (REQUIRED - empty array [] if unknown),
   "cc_recipients": ["Name <email>", ...] (REQUIRED - empty array [] if unknown),
-  "summary": "Detailed multi-line summary with:\n- **Purpose:** ...\n- **Key Points:** bullet list\n- **Background:** context if available",
+  "summary": "- **Background:** context if available\n\n- **Purpose:** ...\n\n- **Key Points:** bullet list",
   "action_items": ["Action 1", "Action 2"],
   "attachments": ["filename1", "filename2"] or [],
   "conversation_context": "Brief note about email thread context if this is a reply"
