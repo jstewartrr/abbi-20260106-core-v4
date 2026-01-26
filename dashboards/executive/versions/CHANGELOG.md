@@ -1,5 +1,31 @@
 # Dashboard Version Changelog
 
+## v9.8.9 - 2026-01-26
+
+### Bug Fix - Email Context Not Persisting Across Chat Turns
+
+Fixed critical issue where ABBI couldn't see email context after the first message in a conversation, causing her to ask for message_id even when it was available.
+
+**Root Cause**: The EMAIL CONTEXT was only included in the first user message, then stored in conversation history. On subsequent messages, the history contained the old context but Claude couldn't easily access it because it was buried in previous messages rather than being prominently available.
+
+**Solution**: Moved EMAIL CONTEXT from user message to system prompt:
+1. **System Prompt Enhancement** - Email context (Message ID, From, To, Subject, Body) is now appended to the system prompt
+2. **Always Visible** - This makes it visible to Claude on EVERY turn of the conversation, not just the first
+3. **Prominent Placement** - Marked as "CURRENT EMAIL CONTEXT (AVAILABLE FOR THIS CONVERSATION)"
+4. **Clear Instructions** - Explicit reminder: "When user says 'reply', 'draft a reply', 'send', 'forward' - use the Message ID above"
+
+**Impact**: Now when you have a multi-turn conversation with ABBI about an email, she can ALWAYS see the email context and Message ID, even on the 5th or 10th message.
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Moved email context from user message to system prompt
+
+**Testing**:
+1. Open an email
+2. Ask ABBI a question - she responds
+3. Then say "draft a reply to all that says [message]" - she should execute immediately without asking for context
+
+---
+
 ## v9.8.8 - 2026-01-26
 
 ### Bug Fix - ABBI Still Asking for Message ID

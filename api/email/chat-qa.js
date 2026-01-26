@@ -228,29 +228,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'Missing question' });
     }
 
-    // Build context
-    let fullPrompt = question;
+    // Build EMAIL CONTEXT block that will be prepended to system prompt
+    let emailContextForSystem = '';
     if (email_context) {
       const message_id = email_context.email_id || email_context.message_id;
-      fullPrompt = `EMAIL CONTEXT:
+      emailContextForSystem = `
+
+=== CURRENT EMAIL CONTEXT (AVAILABLE FOR THIS CONVERSATION) ===
 Message ID: ${message_id || 'Unknown'}
 From: ${email_context.from || 'Unknown'}
 To: ${email_context.to || 'Unknown'}
 Subject: ${email_context.subject || 'No subject'}
-Body: ${email_context.body || email_context.preview || 'No content'}
+Body Preview: ${email_context.body?.substring(0, 500) || email_context.preview || 'No content'}
+===
 
----
-User Question: ${question}`;
+When user says "reply", "draft a reply", "send", "forward" - use the Message ID above.
+`;
     }
 
-    // Build messages
+    // Build messages with conversation history
     let messages = [];
     if (conversation_history && Array.isArray(conversation_history)) {
       messages = conversation_history;
     }
-    messages.push({ role: 'user', content: fullPrompt });
+    messages.push({ role: 'user', content: question });
 
-    // Call Claude
+    // Call Claude with email context in system prompt
+    const systemPromptWithContext = SYSTEM_PROMPT + emailContextForSystem;
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -263,7 +268,7 @@ User Question: ${question}`;
         max_tokens: 1024,
         messages: messages,
         tools: TOOLS,
-        system: SYSTEM_PROMPT
+        system: systemPromptWithContext
       })
     });
 
@@ -306,7 +311,7 @@ User Question: ${question}`;
           }]
         });
 
-        // Get final response
+        // Get final response (with same system prompt including email context)
         const response2 = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -319,7 +324,7 @@ User Question: ${question}`;
             max_tokens: 1024,
             messages: messages,
             tools: TOOLS,
-            system: SYSTEM_PROMPT
+            system: systemPromptWithContext
           })
         });
 
