@@ -2,14 +2,15 @@
 // This should be called every 5 minutes by Make.com or a cron job
 
 const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 const TRIAGE_API_BASE = 'https://abbi-ai.com/api/email';
 
 export const config = {
   maxDuration: 300, // 5 minutes max
 };
 
-async function mcpCall(tool, args) {
-  const res = await fetch(SNOWFLAKE_GATEWAY, {
+async function mcpCall(tool, args, gateway = SNOWFLAKE_GATEWAY) {
+  const res = await fetch(gateway, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -56,7 +57,7 @@ async function markEmailRead(messageId, user = 'jstewart@middleground.com') {
       message_ids: [messageId],
       is_read: true,
       user: user
-    });
+    }, M365_GATEWAY);
     return true;
   } catch (error) {
     console.error(`Failed to mark email ${messageId} as read:`, error.message);
@@ -70,7 +71,7 @@ async function deleteEmail(messageId, user = 'jstewart@middleground.com') {
       message_ids: [messageId],
       permanent: false,
       user: user
-    });
+    }, M365_GATEWAY);
     return true;
   } catch (error) {
     console.error(`Failed to delete email ${messageId}:`, error.message);
