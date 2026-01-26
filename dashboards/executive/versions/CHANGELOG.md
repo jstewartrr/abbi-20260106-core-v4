@@ -1,5 +1,37 @@
 # Dashboard Version Changelog
 
+## v9.9.4 - 2026-01-26
+
+### Enhancement - Streamlined Email Processing Workflow
+
+Implemented two major workflow improvements to speed up email processing:
+
+**1. Auto-Expand Emails in Categories**
+- When clicking a category (Urgent/Priority, To: Need Response, etc.), the first email now auto-expands in detail view
+- No more clicking on each email to expand it - goes straight to the full view
+- Next/Previous buttons navigate through emails in the category
+- Mark as Read & Close automatically advances to the next email in the category
+
+**2. Auto-Update Category Counts**
+- Category counts in the left sidebar now update automatically when you process emails
+- No need to refresh the page to see updated counts
+- Counts reflect the real-time state of your inbox
+
+**How It Works**:
+1. Click a category in sidebar (e.g., "Urgent/Priority (5)")
+2. First email auto-expands with full details
+3. Click "Mark as Read & Close"
+4. Next email auto-expands immediately
+5. Category count in sidebar automatically decrements from 5 → 4
+6. Repeat until category is empty
+
+**Files Changed**:
+- `/dashboards/executive/jstewart.html` - Modified `filterBriefingByCategory()`, `markEmailReadAndClose()`, and `generateDailyBriefing()`
+
+**Impact**: This eliminates the "click to expand, read, mark as read, click next, click to expand" pattern. Now it's just "read, mark as read, read next" - cutting processing time per email in half.
+
+---
+
 ## v9.9.3 - 2026-01-26
 
 ### Bug Fix - Unwanted Folders Being Synced to Hive Mind
