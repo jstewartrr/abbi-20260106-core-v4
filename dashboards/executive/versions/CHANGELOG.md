@@ -1,5 +1,27 @@
 # Dashboard Version Changelog
 
+## v9.8.1 - 2026-01-26
+
+### Bug Fix - Zoom/Teams Meeting Links Not Working
+
+Fixed meeting join buttons (Z and T) not opening meeting links correctly.
+
+**Root Cause**: Meeting URLs in calendar events contained HTML-encoded characters (e.g., `&amp;` instead of `&`), which broke the links when clicked.
+
+**Solution**:
+1. Added `cleanMeetingUrl()` helper function to decode HTML entities
+2. Improved URL regex to stop at HTML tags (`<`) to avoid capturing markup
+3. Remove trailing punctuation from URLs
+4. Added console logging to help debug meeting link detection
+5. Added `rel="noopener noreferrer"` for security
+
+**Files Changed**:
+- `/dashboards/executive/jstewart.html` - Meeting URL cleaning and improved extraction
+
+**Testing**: Click on Z (Zoom) or T (Teams) buttons in calendar - they should now open the meeting in a new tab. Check browser console to see detected URLs.
+
+---
+
 ## v9.8.0 - 2026-01-26 (Updated)
 
 ### Bug Fix - Chat API FUNCTION_INVOCATION_FAILED
