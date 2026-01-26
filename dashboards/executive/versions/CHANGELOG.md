@@ -1,5 +1,32 @@
 # Dashboard Version Changelog
 
+## v9.9.0 - 2026-01-26
+
+### Major - Restored Working Chat from 1/24
+
+Restored the exact working chat-qa.js from 1/24 at 8:07 PM when everything was working perfectly.
+
+**What Was Restored**:
+1. **Full System Prompt** - The comprehensive prompt that explains ABBI's role, context, tools, and email formatting requirements
+2. **Claude Sonnet 4** - Using the more capable model (not Haiku) for better tool calling
+3. **All Tools** - Email reading (read_emails, search_emails, get_email), sending (send, reply, forward), Calendar, Asana
+4. **Proper Email Context** - Email context in user message (not system prompt)
+5. **Working Tool Calling** - The exact pattern that was working on 1/24
+
+**Changes from Working Version**:
+- maxDuration: 60 seconds (was 300) to comply with Vercel Pro limits
+
+**Why This Matters**:
+We spent hours trying to fix the chat with various prompt tweaks and context passing changes, but the real solution was to go back to what was working before. The working version from 1/24 had proper tool calling, good prompts, and reliable execution.
+
+**Files Changed**:
+- `/api/email/chat-qa.js` - Restored from 1/24 working backup
+- `/dashboards/executive/jstewart.html` - Version bump to v9.9.0
+
+**Testing**: Open an email and say "draft a reply to all that says [message]" - should execute immediately.
+
+---
+
 ## v9.8.11 - 2026-01-26
 
 ### Bug Fix - Main ABBI Chat Missing Email Context
