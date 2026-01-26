@@ -58,13 +58,22 @@ async function mcpCall(tool, args = {}) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
   try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(200).end();
+
+    // Check API key
+    if (!ANTHROPIC_API_KEY) {
+      console.error('❌ ANTHROPIC_API_KEY not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'ANTHROPIC_API_KEY not configured'
+      });
+    }
+
     const { question, email_context, context, conversation_history } = req.body;
 
     if (!question) {
@@ -539,9 +548,11 @@ Be direct, concise, professional. You're an executor, not just an advisor.`
 
   } catch (error) {
     console.error('❌ Chat Q&A error:', error);
+    console.error('❌ Error stack:', error.stack);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to process chat question'
+      error: error.message || 'Failed to process chat question',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
