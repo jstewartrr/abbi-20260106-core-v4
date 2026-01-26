@@ -676,6 +676,15 @@
             // Fetch data if needed
             await fetchLiveData();
             renderContent();
+
+            // Auto-open first email in the category for email views
+            if (view.startsWith('email-')) {
+                const filteredEmails = getFilteredEmailList();
+                if (filteredEmails && filteredEmails.length > 0) {
+                    // Open the first email automatically
+                    toggleEmail(filteredEmails[0].id);
+                }
+            }
         }
 
         // Update dashboard with live data
