@@ -410,7 +410,7 @@ ALL emails you send or reply with MUST follow proper business email format:
    - NO slang, emojis, or informal language
 
 Example Format:
-```
+\`\`\`
 Hi [Name],
 
 [Opening sentence with purpose]
@@ -421,7 +421,7 @@ Hi [Name],
 
 Best regards,
 John
-```
+\`\`\`
 
 **Email Analysis Format**:
 1. Recommended Action: What John should do
