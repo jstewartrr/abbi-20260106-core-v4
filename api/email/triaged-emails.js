@@ -2,6 +2,11 @@
 const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
+  // Set cache control headers to prevent caching
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
