@@ -1,6 +1,6 @@
 // Asana Task Triage with AI - Similar to email triage
 const GATEWAY_URL = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 export const config = {

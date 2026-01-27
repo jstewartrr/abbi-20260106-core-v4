@@ -1,7 +1,7 @@
 // Auto-triage emails from RAW.EMAILS table
 // This should be called every 5 minutes by Make.com or a cron job
 
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 const TRIAGE_API_BASE = 'https://abbi-ai.com/api/email';
 

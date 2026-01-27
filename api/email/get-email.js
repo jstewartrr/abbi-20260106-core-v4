@@ -1,5 +1,5 @@
 // API to fetch full email content from Snowflake RAW.EMAILS table
-const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
