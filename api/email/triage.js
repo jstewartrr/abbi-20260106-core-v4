@@ -184,7 +184,7 @@ Body: ${email.body_content.substring(0, 4000)}
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'sm_query_snowflake',
+          name: 'query_snowflake',
           arguments: {
             sql: `INSERT INTO SOVEREIGN_MIND.HIVE_MIND.ENTRIES (CATEGORY, SOURCE, SUMMARY, DETAILS, PRIORITY, WORKSTREAM) SELECT 'triaged_email', 'email-triage-api', '${summaryText}', PARSE_JSON('${detailsJson}'), '${triageResult.priority}', 'email'`
           }

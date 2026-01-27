@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'sm_query_snowflake',
+          name: 'query_snowflake',
           arguments: {
             sql: `SELECT BODY_CONTENT, BODY_PREVIEW, SUBJECT, SENDER, RECEIVED_AT
                   FROM SOVEREIGN_MIND.RAW.EMAILS

@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 
     console.log('SQL:', sql);
 
-    const result = await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
+    const result = await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', { sql });
 
     console.log('✅ Email marked as processed in HIVE_MIND');
 

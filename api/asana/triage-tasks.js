@@ -225,7 +225,7 @@ export default async function handler(req, res) {
     console.log('\n💾 Saving to Snowflake...');
 
     // Clear old tasks
-    await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
+    await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', {
       sql: 'DELETE FROM SOVEREIGN_MIND.RAW.ASANA_TASK_ANALYSIS'
     });
 
@@ -259,7 +259,7 @@ export default async function handler(req, res) {
         ) VALUES ${values}
       `;
 
-      await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql: insertSQL });
+      await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', { sql: insertSQL });
       console.log(`   ✓ Saved ${analyzedTasks.length} tasks`);
     }
 
