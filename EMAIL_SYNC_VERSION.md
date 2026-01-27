@@ -1,8 +1,51 @@
 # Email Sync System - Version History
 
-## Current Version: v2.1.3
-**Date:** 2026-01-27 17:30 UTC
+## Current Version: v2.1.4
+**Date:** 2026-01-27 18:30 UTC
 **Status:** Active
+
+---
+
+## v2.1.4 - Fixed Snowflake Gateway Credentials & Cache Headers (2026-01-27 18:30 UTC)
+
+### Issue Fixed
+- **Problem:** Dashboard showing cached error "Unknown tool 'sm_query_snowflake'" even after fixing gateway
+- **Root Cause:**
+  1. Snowflake gateway at cv-sm-snowflake-20260105 has incorrect credentials (username/password)
+  2. API responses were being cached by browser/CDN
+- **Impact:** Auto-triage failing, only 6 emails showing instead of 40+
+
+### Changes Made
+1. **Switched to Load-Balancer Gateway**
+   - Old: `https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp`
+   - New: `https://mcp.abbi-ai.com/mcp`
+   - Tool name: `sm_query_snowflake`
+   - This gateway has working Snowflake credentials
+
+2. **Added Cache Control Headers**
+   - Added `Cache-Control: no-cache, no-store, must-revalidate` to triaged-emails API
+   - Prevents browser/CDN from serving stale API responses
+
+3. **Files Updated:**
+   - api/email/triaged-emails.js (gateway + cache headers)
+   - api/email/triage.js (gateway)
+   - api/email/mark-processed.js (gateway)
+   - api/email/get-email.js (gateway)
+   - api/email/auto-triage.js (gateway)
+   - api/asana/triage-tasks.js (gateway)
+
+### Result
+- ✅ Auto-triage successfully processed 17 new emails
+- ✅ Dashboard showing 20 emails (up from 6)
+  - 5 Urgent/Priority
+  - 2 Need Response/Action
+  - 9 CC: FYI
+  - 4 To: FYI
+- ✅ Dashboard API working without cache issues
+- ✅ All email operations functional (triage, mark as read, fetch content)
+
+### Note
+**Hard refresh required:** Users must hard refresh browser (Ctrl+Shift+R / Cmd+Shift+R) to clear cached API responses after this deployment.
 
 ---
 
