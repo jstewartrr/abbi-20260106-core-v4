@@ -1,7 +1,7 @@
 // Auto-triage emails from RAW.EMAILS table
 // This should be called every 5 minutes by Make.com or a cron job
 
-const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
 const TRIAGE_API_BASE = 'https://abbi-ai.com/api/email';
 
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
 
     // Get already triaged email IDs from HIVE_MIND
     console.log('\n📋 Fetching already triaged emails...');
-    const triagedResult = await mcpCall('query_snowflake', {
+    const triagedResult = await mcpCall('sm_query_snowflake', {
       sql: `SELECT DETAILS:outlook_message_id::string as outlook_message_id
             FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
             WHERE CATEGORY = 'triaged_email'`
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
 
     // Get recent unprocessed emails from RAW.EMAILS (last 7 days)
     console.log('\n📥 Fetching unprocessed emails from RAW.EMAILS...');
-    const emailsResult = await mcpCall('query_snowflake', {
+    const emailsResult = await mcpCall('sm_query_snowflake', {
       sql: `SELECT ID, OUTLOOK_MESSAGE_ID, SUBJECT, SENDER, FOLDER_NAME,
                    BODY_CONTENT, BODY_PREVIEW, RECEIVED_AT
             FROM SOVEREIGN_MIND.RAW.EMAILS

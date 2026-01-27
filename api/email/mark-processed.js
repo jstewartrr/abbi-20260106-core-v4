@@ -1,5 +1,5 @@
 // Mark email as processed (reviewed) in Snowflake cache
-const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export const config = {
   maxDuration: 60,
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 
     console.log('SQL:', sql);
 
-    const result = await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', { sql });
+    const result = await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql });
 
     console.log('✅ Email marked as processed in HIVE_MIND');
 

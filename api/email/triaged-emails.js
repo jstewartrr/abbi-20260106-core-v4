@@ -1,5 +1,5 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
-            name: 'query_snowflake',
+            name: 'sm_query_snowflake',
             arguments: {
               sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
                     FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES

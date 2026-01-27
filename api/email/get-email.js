@@ -1,5 +1,5 @@
 // API to fetch full email content from Snowflake RAW.EMAILS table
-const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'query_snowflake',
+          name: 'sm_query_snowflake',
           arguments: {
             sql: `SELECT BODY_CONTENT, BODY_PREVIEW, SUBJECT, SENDER, RECEIVED_AT
                   FROM SOVEREIGN_MIND.RAW.EMAILS

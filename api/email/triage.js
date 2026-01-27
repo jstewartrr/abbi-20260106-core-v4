@@ -177,14 +177,14 @@ Body: ${email.body_content.substring(0, 4000)}
     const summaryText = `${escapeSql(email.subject)} - ${triageResult.tag} (${triageResult.priority})`;
     const detailsJson = JSON.stringify(emailDetails).replace(/'/g, "''").replace(/\\/g, "\\\\");
 
-    const hiveMindResponse = await fetch('https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp', {
+    const hiveMindResponse = await fetch('https://mcp.abbi-ai.com/mcp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0',
         method: 'tools/call',
         params: {
-          name: 'query_snowflake',
+          name: 'sm_query_snowflake',
           arguments: {
             sql: `INSERT INTO SOVEREIGN_MIND.HIVE_MIND.ENTRIES (CATEGORY, SOURCE, SUMMARY, DETAILS, PRIORITY, WORKSTREAM) SELECT 'triaged_email', 'email-triage-api', '${summaryText}', PARSE_JSON('${detailsJson}'), '${triageResult.priority}', 'email'`
           }

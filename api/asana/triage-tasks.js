@@ -1,6 +1,6 @@
 // Asana Task Triage with AI - Similar to email triage
 const GATEWAY_URL = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
-const SNOWFLAKE_GATEWAY = 'https://cv-sm-snowflake-20260105.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 export const config = {
@@ -225,7 +225,7 @@ export default async function handler(req, res) {
     console.log('\n💾 Saving to Snowflake...');
 
     // Clear old tasks
-    await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', {
+    await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', {
       sql: 'DELETE FROM SOVEREIGN_MIND.RAW.ASANA_TASK_ANALYSIS'
     });
 
@@ -259,7 +259,7 @@ export default async function handler(req, res) {
         ) VALUES ${values}
       `;
 
-      await mcpCall(SNOWFLAKE_GATEWAY, 'query_snowflake', { sql: insertSQL });
+      await mcpCall(SNOWFLAKE_GATEWAY, 'sm_query_snowflake', { sql: insertSQL });
       console.log(`   ✓ Saved ${analyzedTasks.length} tasks`);
     }
 
