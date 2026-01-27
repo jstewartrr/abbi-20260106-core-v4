@@ -1,4 +1,5 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
+// Version: 2.1.4 - Fixed gateway credentials and added cache headers
 const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
@@ -6,6 +7,8 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('X-API-Version', '2.1.4');
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
