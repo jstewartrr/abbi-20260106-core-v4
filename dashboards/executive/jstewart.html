@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.5 - Disable auto-expand for debugging -->
+<!-- ABBI Executive Dashboard v10.1.6 - Add error handling to task rendering -->
 <!-- Force refresh: 2026-01-28T01:20:00Z -->
-<!-- Change: Temporarily disabled task auto-expand to debug rendering issue -->
+<!-- Change: Added try-catch blocks and safer property access for debugging -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.5 | ABBI</title>
+    <title>Executive Dashboard v10.1.6 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -244,7 +244,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.5</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.6</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -3983,38 +3983,52 @@
         async function toggleTask(taskGid) {
             console.log('📋 Toggling task:', taskGid);
 
-            if (expandedTaskId === taskGid) {
-                // Collapse current task
+            try {
+                if (expandedTaskId === taskGid) {
+                    // Collapse current task
+                    expandedTaskId = null;
+                    renderContent();
+                    return;
+                }
+
+                // Find the task in liveData
+                let task = null;
+                for (const category in liveData.tasks) {
+                    task = liveData.tasks[category].find(t => t.gid === taskGid);
+                    if (task) break;
+                }
+
+                if (!task) {
+                    console.error('Task not found:', taskGid);
+                    alert('Task not found: ' + taskGid);
+                    return;
+                }
+
+                console.log('Found task:', task.name);
+
+                // Set expanded task
+                expandedTaskId = taskGid;
+
+                // Render expanded view
+                await renderExpandedTask(task);
+
+                console.log('✓ Task expanded successfully');
+            } catch (error) {
+                console.error('❌ Error in toggleTask:', error);
+                alert('Error expanding task: ' + error.message);
                 expandedTaskId = null;
                 renderContent();
-                return;
             }
-
-            // Find the task in liveData
-            let task = null;
-            for (const category in liveData.tasks) {
-                task = liveData.tasks[category].find(t => t.gid === taskGid);
-                if (task) break;
-            }
-
-            if (!task) {
-                console.error('Task not found:', taskGid);
-                return;
-            }
-
-            // Set expanded task
-            expandedTaskId = taskGid;
-
-            // Render expanded view
-            await renderExpandedTask(task);
         }
 
         // Render expanded task view
         async function renderExpandedTask(task) {
-            const container = document.getElementById('contentList');
+            try {
+                console.log('Rendering expanded task:', task);
+                const container = document.getElementById('contentList');
 
-            // Build expanded task HTML
-            let html = '<div class="expanded-email-view">';
+                // Build expanded task HTML
+                let html = '<div class="expanded-email-view">';
 
             // Header with navigation
             html += '<div class="expanded-email-header">';
@@ -4056,10 +4070,10 @@
 
             // Task metadata
             html += '<div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;font-size:.9rem">';
-            html += '<div><strong>Assignee:</strong> ' + escapeHtml(task.assignee.name) + '</div>';
-            html += '<div><strong>Due:</strong> ' + escapeHtml(task.due_date) + '</div>';
-            if (task.subtasks_count > 0) {
-                html += '<div><strong>Subtasks:</strong> ' + task.subtasks_completed + '/' + task.subtasks_count + ' completed</div>';
+            html += '<div><strong>Assignee:</strong> ' + escapeHtml(task.assignee?.name || 'Unassigned') + '</div>';
+            html += '<div><strong>Due:</strong> ' + escapeHtml(task.due_date || 'No due date') + '</div>';
+            if (task.subtasks_count && task.subtasks_count > 0) {
+                html += '<div><strong>Subtasks:</strong> ' + (task.subtasks_completed || 0) + '/' + task.subtasks_count + ' completed</div>';
             }
             html += '</div>';
 
@@ -4119,6 +4133,13 @@
             html += '</div>'; // Close expanded-email-view
 
             container.innerHTML = html;
+            console.log('✓ Expanded task HTML rendered');
+            } catch (error) {
+                console.error('❌ Error rendering expanded task:', error);
+                const container = document.getElementById('contentList');
+                container.innerHTML = '<div class="no-selection"><p>Error loading task</p><p style="font-size:.85rem;color:var(--text3);margin-top:8px">' + escapeHtml(error.message) + '</p></div>';
+                throw error;
+            }
         }
 
         // Helper function to get current task list
