@@ -64,9 +64,17 @@ export default async function handler(req, res) {
     // Fetch full task details
     const taskDetails = await mcpCall('asana_get_task', { task_id });
 
+    // Handle different response formats
+    const task = taskDetails.task || taskDetails;
+
+    if (!task || !task.gid) {
+      console.error('Invalid task response:', taskDetails);
+      return res.status(404).json({ success: false, error: 'Task not found or invalid response' });
+    }
+
     // Fetch subtasks
     let subtasks = [];
-    if (taskDetails.task?.num_subtasks > 0) {
+    if (task.num_subtasks > 0) {
       try {
         const subtasksData = await mcpCall('asana_get_subtasks', { task_id });
         subtasks = (subtasksData.subtasks || []).map(st => ({
@@ -115,9 +123,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       task: {
-        gid: taskDetails.task.gid,
-        name: taskDetails.task.name,
-        notes: taskDetails.task.notes || '',
+        gid: task.gid,
+        name: task.name,
+        notes: task.notes || '',
         subtasks: subtasks,
         subtasks_count: subtasks.length,
         subtasks_completed: subtasks.filter(st => st.completed).length,
