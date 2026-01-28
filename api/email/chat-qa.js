@@ -1,25 +1,30 @@
-// ABBI Chat Q&A - v9.4.13 with M365 gateway (fixed FUNCTION_INVOCATION_FAILED error)
+// ABBI Chat Q&A - v10.2.2 with M365 + Asana gateways
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const M365_GATEWAY = 'https://m365-mcp-west.nicecliff-a1c1a3b6.westus2.azurecontainerapps.io/mcp';
+const ASANA_GATEWAY = 'https://cv-sm-gateway-v3.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 // Extend timeout for AI chat processing
 export const config = {
   maxDuration: 60, // Vercel Pro limit
 };
 
-// MCP tool call helper with timeout - routes to M365 gateway for all tools
+// MCP tool call helper with timeout - routes to appropriate gateway
 async function mcpCall(tool, args = {}) {
-  // M365 gateway expects tool names WITHOUT the m365_/asana_ prefix
+  // Determine which gateway to use based on tool prefix
+  const isAsanaTool = tool.startsWith('asana_');
+  const gateway = isAsanaTool ? ASANA_GATEWAY : M365_GATEWAY;
+
+  // Gateway expects tool names WITHOUT the prefix
   // Strip the prefix: m365_reply_email -> reply_email, asana_create_task -> create_task
   const actualToolName = tool.replace(/^(m365|asana)_/, '');
 
-  console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) with args:`, JSON.stringify(args).substring(0, 200));
+  console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) via ${isAsanaTool ? 'ASANA' : 'M365'} gateway with args:`, JSON.stringify(args).substring(0, 200));
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout (increased from 15s)
 
   try {
-    const res = await fetch(M365_GATEWAY, {
+    const res = await fetch(gateway, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -324,6 +329,29 @@ User Question: ${question}`;
           },
           required: ['name']
         }
+      },
+      {
+        name: 'asana_add_comment',
+        description: 'Add a comment to an Asana task. Use the task_id from ASANA TASK CONTEXT.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task GID to comment on (from ASANA TASK CONTEXT)' },
+            text: { type: 'string', description: 'Comment text to add' }
+          },
+          required: ['task_id', 'text']
+        }
+      },
+      {
+        name: 'asana_complete_task',
+        description: 'Mark an Asana task as complete. Use the task_id from ASANA TASK CONTEXT.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task GID to complete (from ASANA TASK CONTEXT)' }
+          },
+          required: ['task_id']
+        }
       }
     ];
 
@@ -382,7 +410,11 @@ CALENDAR MANAGEMENT:
 ASANA PROJECT MANAGEMENT:
 - asana_create_task: Create task (name, notes, project_id, assignee, due_on)
 - asana_update_task: Update task (task_id, + any field to change, completed)
+- asana_add_comment: Add comment to task (task_id, text)
+- asana_complete_task: Mark task as complete (task_id)
 - asana_create_project: Create project (name, notes, workspace)
+
+IMPORTANT: When viewing a task (ASANA TASK CONTEXT section), you have the task_id available to add comments or complete tasks.
 
 John's Constants:
 - Email: jstewart@middleground.com
@@ -416,6 +448,9 @@ Examples:
 - "Forward this to Sarah and Mark" → m365_forward_email with their emails
 - "Create a task for this" → asana_create_task with appropriate project
 - "Schedule a meeting with CFO next Tuesday 2pm" → m365_create_event
+- "Add a comment to this task saying we need more details" → asana_add_comment with task_id from context
+- "Mark this task as done" → asana_complete_task with task_id from context
+- "Comment on this task with an update" → Draft comment, call asana_add_comment, report success
 - "What should I say to this?" → Provide recommendation, DON'T send
 
 **Email Formatting - PROFESSIONAL BUSINESS STYLE** (CRITICAL):
