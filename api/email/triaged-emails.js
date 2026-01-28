@@ -1,13 +1,14 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.1.4 - Fixed gateway credentials and added cache headers
-const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
+// Version: 2.1.5 - Use working MCP endpoint with correct tool name
+const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+const M365_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
   // Set cache control headers to prevent caching
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.1.4');
+  res.setHeader('X-API-Version', '2.1.5');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -25,7 +26,7 @@ export default async function handler(req, res) {
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
-            name: 'sm_query_snowflake',
+            name: 'query_snowflake',
             arguments: {
               sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
                     FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
         })
       }),
       // Fetch calendar events from M365 (today and tomorrow)
-      fetch(SNOWFLAKE_GATEWAY, {
+      fetch(M365_GATEWAY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,6 +85,12 @@ export default async function handler(req, res) {
       results = JSON.parse(content.text);
     } catch (parseError) {
       console.error('Failed to parse Snowflake response:', content.text);
+
+      // Check if it's an "Unknown tool" error from the gateway
+      if (content.text.includes('Error: Unknown tool')) {
+        throw new Error('MCP gateway error: The sm_query_snowflake tool is not available. This may be a temporary gateway issue. Please refresh in a few seconds.');
+      }
+
       throw new Error(`Snowflake returned invalid JSON: ${content.text.substring(0, 100)}`);
     }
 
