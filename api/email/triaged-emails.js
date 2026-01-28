@@ -1,26 +1,39 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.3.1 - Use Promise.allSettled to allow calendar failures without breaking email fetch
+// Version: 2.3.2 - Add retry logic to handle intermittent gateway failures
 const SNOWFLAKE_MCP = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_MCP = 'https://mcp.abbi-ai.com/mcp';
 
-// Helper function - enhanced with error text detection
-async function mcpCall(url, tool, args = {}) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: args }, id: Date.now() })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-  const content = data.result?.content?.[0];
-  if (content?.type === 'text') {
-    // Check if text is an error message before parsing as JSON
-    if (content.text.startsWith('Error:')) {
-      throw new Error(content.text);
+// Helper function - enhanced with error text detection and retry logic
+async function mcpCall(url, tool, args = {}, retries = 2) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: args }, id: Date.now() })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const content = data.result?.content?.[0];
+      if (content?.type === 'text') {
+        // Check if text is an error message before parsing as JSON
+        if (content.text.startsWith('Error:')) {
+          throw new Error(content.text);
+        }
+        return JSON.parse(content.text);
+      }
+      return content;
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) {
+        // Wait briefly before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+        console.log(`Retry ${attempt + 1}/${retries} for ${tool}: ${error.message}`);
+      }
     }
-    return JSON.parse(content.text);
   }
-  return content;
+  throw lastError;
 }
 
 export default async function handler(req, res) {
@@ -28,7 +41,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.3.1');
+  res.setHeader('X-API-Version', '2.3.2');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -36,7 +49,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('=== API v2.3.1 - Fetching triaged emails using Promise.allSettled ===');
+    console.log('=== API v2.3.2 - Fetching triaged emails with retry logic ===');
     console.log('Snowflake MCP:', SNOWFLAKE_MCP);
 
     // Fetch emails and calendar in parallel using Promise.allSettled
