@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.2.0 - Add approval workflow buttons -->
-<!-- Force refresh: 2026-01-28T09:30:00Z -->
-<!-- Change: Approval tasks now show Approve/Request Changes/Reject buttons -->
+<!-- ABBI Executive Dashboard v10.2.1 - Smaller buttons and fix Asana link -->
+<!-- Force refresh: 2026-01-28T09:45:00Z -->
+<!-- Change: Reduced button sizes, fixed Open in Asana URL format -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.2.0 | ABBI</title>
+    <title>Executive Dashboard v10.2.1 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -251,7 +251,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.2.0</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.2.1</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -4181,20 +4181,22 @@
                              taskText.includes('pending approval');
 
             // Action buttons - different for approvals vs regular tasks
-            html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
+            html += '<div style="display:flex;gap:6px;margin-top:16px;flex-wrap:wrap">';
 
             if (isApproval) {
-                // Approval-specific buttons (like Dropbox)
-                html += '<button onclick="approveTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#10b981;border-color:#10b981;color:#fff">✓ Approve</button>';
-                html += '<button onclick="requestChangesTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#f59e0b;border-color:#f59e0b;color:#fff">↻ Request Changes</button>';
-                html += '<button onclick="rejectTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#ef4444;border-color:#ef4444;color:#fff">✗ Reject</button>';
+                // Approval-specific buttons (like Dropbox) - smaller
+                html += '<button onclick="approveTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:110px;padding:6px 10px;font-size:.75rem;background:#10b981;border-color:#10b981;color:#fff">✓ Approve</button>';
+                html += '<button onclick="requestChangesTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:110px;padding:6px 10px;font-size:.75rem;background:#f59e0b;border-color:#f59e0b;color:#fff">↻ Request Changes</button>';
+                html += '<button onclick="rejectTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:110px;padding:6px 10px;font-size:.75rem;background:#ef4444;border-color:#ef4444;color:#fff">✗ Reject</button>';
             } else {
-                // Regular task buttons
-                html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="response-btn primary" style="flex:1;min-width:160px">✓ Complete & Advance</button>';
-                html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="response-btn" style="flex:1;min-width:160px">💬 Add Comment</button>';
+                // Regular task buttons - smaller
+                html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="response-btn primary" style="flex:1;min-width:120px;padding:6px 10px;font-size:.75rem">✓ Complete & Advance</button>';
+                html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="response-btn" style="flex:1;min-width:110px;padding:6px 10px;font-size:.75rem">💬 Add Comment</button>';
             }
 
-            html += '<a href="' + (task.permalink_url || 'https://app.asana.com/0/' + task.gid) + '" target="_blank" class="response-btn" style="flex:1;min-width:160px;text-decoration:none" onclick="event.stopPropagation()">🔗 Open in Asana</a>';
+            // Construct proper Asana URL - use permalink_url or construct from gid
+            const asanaUrl = task.permalink_url || `https://app.asana.com/0/0/${task.gid}`;
+            html += '<a href="' + asanaUrl + '" target="_blank" class="response-btn" style="flex:1;min-width:110px;padding:6px 10px;font-size:.75rem;text-decoration:none" onclick="event.stopPropagation()">🔗 Open in Asana</a>';
             html += '</div>';
 
             html += '</div>'; // Close expanded-email-content
