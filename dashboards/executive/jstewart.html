@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.7 - Fix task disappearing bug -->
+<!-- ABBI Executive Dashboard v10.1.8 - Add isExpandingTask flag to prevent interference -->
 <!-- Force refresh: 2026-01-28T01:20:00Z -->
-<!-- Change: Don't call renderContent if expandedTaskId is set, re-enabled auto-expand -->
+<!-- Change: Added flag to block renderContent during task expansion -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.7 | ABBI</title>
+    <title>Executive Dashboard v10.1.8 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -244,7 +244,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.7</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.8</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -531,6 +531,7 @@
         let expandedEmailId = null;
         let expandedMeetingId = null;
         let expandedTaskId = null; // Track expanded Asana task
+        let isExpandingTask = false; // Flag to prevent renderContent() interference
         let leftPaneCollapsed = false;
         let rightPaneCollapsed = false;
         
@@ -703,7 +704,18 @@
 
             // Fetch data if needed
             await fetchLiveData();
-            renderContent();
+
+            // Check if we'll auto-expand a task
+            let willAutoExpandTask = false;
+            if (view.startsWith('task-')) {
+                const filteredTasks = getCurrentTaskList();
+                willAutoExpandTask = filteredTasks && filteredTasks.length > 0;
+            }
+
+            // Only render if NOT about to auto-expand (which will render itself)
+            if (!willAutoExpandTask) {
+                renderContent();
+            }
 
             // Auto-open first email in the category for email views
             if (view.startsWith('email-')) {
@@ -715,12 +727,11 @@
             }
 
             // Auto-open first task in the category for task views
-            if (view.startsWith('task-')) {
+            if (willAutoExpandTask) {
                 const filteredTasks = getCurrentTaskList();
-                if (filteredTasks && filteredTasks.length > 0) {
-                    // Open the first task automatically
-                    toggleTask(filteredTasks[0].gid);
-                }
+                isExpandingTask = true; // Set flag to block any renderContent calls
+                await toggleTask(filteredTasks[0].gid);
+                isExpandingTask = false;
             }
         }
 
@@ -3931,8 +3942,8 @@
                 document.getElementById('task-delegated-due-today').textContent = data.counts.delegated_tasks_due_today || 0;
                 document.getElementById('task-delegated-past-due').textContent = data.counts.delegated_tasks_past_due || 0;
 
-                // If currently viewing a task view AND no task is expanded, refresh the display
-                if (currentView.startsWith('task-') && !expandedTaskId) {
+                // Don't refresh if task is expanded or currently expanding
+                if (currentView.startsWith('task-') && !expandedTaskId && !isExpandingTask) {
                     renderContent();
                 }
 
