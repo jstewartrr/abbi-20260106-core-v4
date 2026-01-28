@@ -1,5 +1,100 @@
 # Dashboard Version Changelog
 
+## v10.1.0 - 2026-01-28
+
+### Major Feature - Asana Task Management Integration
+
+Integrated Asana task management into the executive dashboard, bringing tasks alongside emails in a unified interface with the same seamless auto-expand workflow.
+
+**New Features:**
+- Added 4 task categories to RECEIVED TASKS sidebar:
+  - My Tasks Due Today (amber)
+  - My Tasks Past Due (high/red)
+  - Delegated Tasks Due Today (amber)
+  - Delegated Tasks Past Due (high/red)
+- Auto-expand first task when category clicked
+- Expanded task view with:
+  - Project > Section breadcrumb
+  - Task name, assignee, due date, metadata
+  - AI-generated summary
+  - Subtasks list with completion checkmarks (✓/○)
+  - Recent comments (last 5)
+  - Attachments list
+  - Action buttons: Complete & Advance, Add Comment, Open in Asana
+  - Previous/Next navigation
+- Same seamless workflow as email triage from v10.0.9
+
+**API Changes:**
+- Updated `/api/asana/triage-tasks.js`:
+  - Fixed project IDs: MP Dashboard (1204554210439476), Johns Weekly Items (1212197943409021)
+  - Updated category logic: My Tasks Due Today, My Tasks Past Due, Delegated Tasks Due Today, Delegated Tasks Past Due
+  - Added fetching of subtasks, comments, and attachments for each task
+  - Enhanced AI analysis with task details
+  - Updated Snowflake INSERT with new fields: PROJECT, ASSIGNEE_GID, SUBTASKS_JSON, COMMENTS_JSON, ATTACHMENTS_JSON
+- Created `/api/asana/tasks.js`:
+  - New GET endpoint to fetch tasks from Snowflake
+  - Returns tasks grouped by 4 categories
+  - Includes retry logic for reliability
+  - Parses JSON fields and calculates counts
+- Created `/api/asana/setup_table.sql`:
+  - SQL script to create/update ASANA_TASK_ANALYSIS table
+  - Includes all required columns and indexes
+
+**Dashboard Changes:**
+- Configuration:
+  - Added `CONFIG.TASKS_API = '/api/asana/tasks'`
+  - Added `expandedTaskId` global variable
+- Data Loading:
+  - Created `loadAsanaTasks()` function to fetch tasks from API
+  - Updates sidebar counts automatically
+- Task Rendering:
+  - Rewrote `renderTaskList()` to handle new task categories
+  - Shows project > section, assignee, due date, subtasks progress
+- Task Interaction:
+  - Created `toggleTask()` for task expansion
+  - Created `renderExpandedTask()` for full task view
+  - Created `getCurrentTaskList()` helper
+  - Created `formatDueDate()` for date formatting (Today, 3d overdue, etc.)
+  - Placeholder functions for task actions (to be implemented)
+- Auto-Expand:
+  - Updated `switchMetricView()` to reset `expandedTaskId`
+  - Auto-load tasks when task view clicked
+  - Auto-expand first task in category
+
+**User Workflow:**
+1. Click "My Tasks Due Today" → first task auto-expands
+2. Review AI summary, subtasks, comments, attachments
+3. Click "Next" to navigate → next task auto-expands
+4. Click "Open in Asana" to perform actions
+5. Continue through all tasks in continuous flow
+
+**Files Changed:**
+- `/api/asana/triage-tasks.js` - Updated category logic and enrichment
+- `/api/asana/tasks.js` - New endpoint (247 lines)
+- `/api/asana/setup_table.sql` - Snowflake setup script
+- `/dashboards/executive/jstewart.html` - v10.1.0 (343 additions, 63 deletions)
+
+**Deployment:**
+- Committed: 8d8d825 (Phase 2), 6368c64 (Phase 1)
+- Deployed: 2026-01-28
+- Live: https://abbi-ai.com/dashboards/executive/jstewart.html
+
+**Documentation:** `/Users/john/abbi-ai-site/ASANA_INTEGRATION_v10.1.0.md`
+
+**Known Limitations:**
+- Task actions (Complete, Add Comment) are placeholders - show alerts
+- No real-time updates - tasks loaded when category clicked
+- Delegated task detection assumes tasks in user's projects = delegated by user
+
+**Future Enhancements:**
+- Implement interactive task completion with Asana API
+- Add comment functionality
+- Make subtasks clickable to complete
+- Add refresh mechanism
+- Enable task creation from dashboard
+
+---
+
 ## v10.0.9 - 2026-01-28
 
 ### Bug Fix - Auto-Expand First Email When Category Clicked
