@@ -1,5 +1,30 @@
 # Dashboard Version Changelog
 
+## v10.0.2 - 2026-01-28
+
+### Bug Fix - Use Container with Correct Built-In Credentials
+
+Fixed Snowflake authentication errors by using the cv-sf-redundant container which has the correct SOVEREIGN_MIND_WH credentials built-in.
+
+**Root Cause**: Both mcp.abbi-ai.com and previous endpoints were using wrong Snowflake user accounts (john_grok, john_claude) when called via unauthenticated HTTP from the API, causing account lockouts.
+
+**Solution**: Use the same container endpoint as `read-hive-mind.js` which has working credentials:
+- Snowflake queries: `cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp`
+- M365 queries: `mcp.abbi-ai.com/mcp`
+- Tool: `sm_query_snowflake`
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - API Version 2.1.8
+  - Split endpoints: SNOWFLAKE_MCP (cv-sf-redundant) and M365_MCP (load balancer)
+  - Uses container with correct built-in credentials
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.2
+
+**Impact**: Dashboard loads triaged emails without authentication errors or account lockouts.
+
+**Testing**: Refresh dashboard - should load emails successfully with correct Snowflake credentials.
+
+---
+
 ## v10.0.1 - 2026-01-28
 
 ### Bug Fix - Corrected MCP Gateway Configuration
