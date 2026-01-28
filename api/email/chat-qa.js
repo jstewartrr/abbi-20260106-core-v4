@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { question, email_context, context, conversation_history } = req.body;
+    const { question, email_context, task_context, context, conversation_history } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -77,7 +77,9 @@ export default async function handler(req, res) {
 
     console.log(`💬 Chat Q&A - Question: ${question?.substring(0, 100)}`);
     console.log(`📧 Email context: ${email_context ? 'Yes' : 'No'}`);
+    console.log(`📋 Task context: ${task_context ? 'Yes' : 'No'}`);
     console.log(`📧 Message ID: ${email_context?.email_id || email_context?.message_id || 'Not provided'}`);
+    console.log(`📋 Task ID: ${task_context?.task_id || task_context?.task_gid || 'Not provided'}`);
 
     // Build context for AI
     let fullPrompt = question;
@@ -101,6 +103,37 @@ ${email_context.body || email_context.preview || 'No content available'}
 User Question: ${question}`;
 
       fullPrompt = emailData;
+    }
+
+    if (task_context) {
+      const task_id = task_context.task_id || task_context.task_gid;
+      const taskData = `
+ASANA TASK CONTEXT:
+Task ID: ${task_id || 'Unknown'}
+Task Name: ${task_context.name || 'Untitled'}
+Project: ${task_context.project || 'Unknown'}
+Section: ${task_context.section || 'None'}
+Assignee: ${task_context.assignee || 'Unassigned'}
+Due Date: ${task_context.due_date || 'No due date'}
+Category: ${task_context.category || 'Unknown'}
+
+Description:
+${task_context.description || 'No description'}
+
+Subtasks: ${task_context.subtasks_completed || 0} of ${task_context.subtasks_count || 0} completed
+${task_context.subtasks && task_context.subtasks.length > 0 ? '\nSubtask Details:\n' + task_context.subtasks.map(st => `  ${st.completed ? '✓' : '○'} ${st.name}`).join('\n') : ''}
+
+Comments: ${task_context.comments?.length || 0} comment(s)
+${task_context.comments && task_context.comments.length > 0 ? '\nRecent Comments:\n' + task_context.comments.slice(-3).map(c => `  - ${c.created_by?.name}: ${c.text}`).join('\n') : ''}
+
+Attachments: ${task_context.attachments?.length || 0} file(s)
+${task_context.attachments && task_context.attachments.length > 0 ? '\nAttachments:\n' + task_context.attachments.map(a => `  - ${a.name}`).join('\n') : ''}
+
+---
+
+User Question: ${question}`;
+
+      fullPrompt = taskData;
     }
 
     // Build messages array with conversation history
