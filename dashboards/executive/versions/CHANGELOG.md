@@ -1,5 +1,28 @@
 # Dashboard Version Changelog
 
+## v10.0.3 - 2026-01-28
+
+### Bug Fix - Fixed Response Format Parsing
+
+Fixed "Invalid Snowflake response" error by updating API to match cv-sf-redundant container's response format.
+
+**Root Cause**: The triaged-emails API was expecting `result.content[0].text` format (from mcp.abbi-ai.com), but cv-sf-redundant returns `result.data` directly (no content wrapper).
+
+**Solution**: Updated response parsing to match read-hive-mind.js which works correctly with cv-sf-redundant:
+- Removed `content[0].text` parsing layer
+- Access `result.data` directly from response
+- Matches format used by working read-hive-mind.js API
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - API Version 2.1.9
+  - Simplified response parsing: `snowflakeData.result.data`
+  - Added logging to debug response format
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.3
+
+**Impact**: Dashboard successfully loads triaged emails from HIVE_MIND.
+
+---
+
 ## v10.0.2 - 2026-01-28
 
 ### Bug Fix - Use Container with Correct Built-In Credentials

@@ -1,5 +1,5 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.1.8 - Use cv-sf-redundant container with correct built-in credentials
+// Version: 2.1.9 - Fixed response format to match cv-sf-redundant container (result.data directly)
 const SNOWFLAKE_MCP = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_MCP = 'https://mcp.abbi-ai.com/mcp';
 
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.1.8');
+  res.setHeader('X-API-Version', '2.1.9');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -67,6 +67,7 @@ export default async function handler(req, res) {
     }
 
     const snowflakeData = await snowflakeResponse.json();
+    console.log('Snowflake response:', JSON.stringify(snowflakeData).substring(0, 300));
 
     // Check for MCP error
     if (snowflakeData.error) {
@@ -74,27 +75,13 @@ export default async function handler(req, res) {
       throw new Error(`Snowflake error: ${snowflakeData.error.message || JSON.stringify(snowflakeData.error)}`);
     }
 
-    const content = snowflakeData.result?.content?.[0];
-
-    if (!content || content.type !== 'text') {
-      console.error('Invalid Snowflake response structure:', JSON.stringify(snowflakeData).substring(0, 500));
-      throw new Error('Invalid Snowflake response');
+    // cv-sf-redundant format: result.data directly (like read-hive-mind.js)
+    if (!snowflakeData.result || !snowflakeData.result.data) {
+      console.error('Invalid Snowflake response:', JSON.stringify(snowflakeData).substring(0, 500));
+      throw new Error('No data returned from Snowflake');
     }
 
-    console.log('Snowflake content.text:', content.text.substring(0, 200));
-
-    let results;
-    try {
-      results = JSON.parse(content.text);
-    } catch (parseError) {
-      console.error('Failed to parse Snowflake response:', content.text.substring(0, 500));
-      throw new Error(`Snowflake query failed - check Vercel logs for details: ${parseError.message}`);
-    }
-
-    if (!results.success || !results.data) {
-      console.error('Snowflake query failed:', results.error);
-      throw new Error(results.error || 'No data returned from Hive Mind');
-    }
+    const results = { success: true, data: snowflakeData.result.data };
 
     // Parse calendar response
     let calendarEvents = [];
