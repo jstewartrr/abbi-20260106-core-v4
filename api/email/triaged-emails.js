@@ -1,9 +1,9 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.2.1 - Use proven mcpCall helper from debug-executive.js
+// Version: 2.3.1 - Use Promise.allSettled to allow calendar failures without breaking email fetch
 const SNOWFLAKE_MCP = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_MCP = 'https://mcp.abbi-ai.com/mcp';
 
-// Helper function - copied from debug-executive.js (known working)
+// Helper function - enhanced with error text detection
 async function mcpCall(url, tool, args = {}) {
   const res = await fetch(url, {
     method: 'POST',
@@ -11,9 +11,16 @@ async function mcpCall(url, tool, args = {}) {
     body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: args }, id: Date.now() })
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
   const content = data.result?.content?.[0];
-  return content?.type === 'text' ? JSON.parse(content.text) : content;
+  if (content?.type === 'text') {
+    // Check if text is an error message before parsing as JSON
+    if (content.text.startsWith('Error:')) {
+      throw new Error(content.text);
+    }
+    return JSON.parse(content.text);
+  }
+  return content;
 }
 
 export default async function handler(req, res) {
@@ -21,7 +28,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.3.0');
+  res.setHeader('X-API-Version', '2.3.1');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -29,11 +36,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('=== API v2.3.0 - Fetching triaged emails using mcpCall ===');
+    console.log('=== API v2.3.1 - Fetching triaged emails using Promise.allSettled ===');
     console.log('Snowflake MCP:', SNOWFLAKE_MCP);
 
-    // Fetch emails and calendar in parallel using mcpCall helper
-    const [results, calendarResults] = await Promise.all([
+    // Fetch emails and calendar in parallel using Promise.allSettled
+    // (allows calendar to fail without breaking email fetch)
+    const [emailsResult, calendarResult] = await Promise.allSettled([
       // Query Hive Mind table directly via Snowflake
       mcpCall(SNOWFLAKE_MCP, 'sm_query_snowflake', {
         sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
@@ -51,6 +59,12 @@ export default async function handler(req, res) {
       })
     ]);
 
+    // Check email result (critical - must succeed)
+    if (emailsResult.status === 'rejected') {
+      throw new Error(`Failed to fetch emails: ${emailsResult.reason}`);
+    }
+
+    const results = emailsResult.value;
     if (!results.success) {
       throw new Error(results.error || 'Snowflake query failed');
     }
@@ -59,8 +73,14 @@ export default async function handler(req, res) {
       console.log('No triaged emails found');
     }
 
-    // Extract calendar events from response
-    const calendarEvents = calendarResults.events || calendarResults.value || [];
+    // Extract calendar events from response (non-critical - can fail gracefully)
+    let calendarEvents = [];
+    if (calendarResult.status === 'fulfilled') {
+      const calendarResults = calendarResult.value;
+      calendarEvents = calendarResults.events || calendarResults.value || [];
+    } else {
+      console.error('Calendar fetch failed:', calendarResult.reason);
+    }
 
     // Transform Hive Mind entries to email format expected by dashboard
     const emails = results.data.map(row => {

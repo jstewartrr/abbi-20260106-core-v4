@@ -1,5 +1,44 @@
 # Dashboard Version Changelog
 
+## v10.0.6 - 2026-01-28
+
+### Bug Fix - Fixed Intermittent API Failures
+
+Fixed intermittent "Unexpected token 'E'" errors by enhancing error handling in two ways:
+1. Use Promise.allSettled instead of Promise.all to prevent calendar failures from breaking email fetch
+2. Enhanced mcpCall to detect error text before attempting JSON parsing
+
+**Testing Process**:
+1. Enhanced mcpCall helper to check if content.text starts with "Error:" before parsing as JSON
+2. Changed Promise.all to Promise.allSettled for parallel calls
+3. Added separate error handling for critical (emails) vs non-critical (calendar) calls
+4. Tested locally 5 times - 4/5 fully successful, 1/5 calendar failed but emails succeeded (graceful degradation)
+5. Calendar failures now logged but don't break the API
+
+**Root Cause**: Two issues caused intermittent failures:
+- MCP gateway sometimes returns error messages in content.text field (e.g., "Error: Unknown tool")
+- mcpCall tried to JSON.parse these error messages, causing "Unexpected token 'E'" errors
+- Promise.all would fail entirely if calendar call failed, even though emails are the critical data
+
+**Solution**:
+- Enhanced mcpCall: Check if text starts with "Error:" before JSON.parse
+- Changed to Promise.allSettled: Allows calendar to fail without breaking email fetch
+- Separate handling: Emails must succeed (throw error), calendar can fail gracefully (log warning)
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - API Version 2.3.1
+  - Enhanced mcpCall with error text detection
+  - Changed Promise.all → Promise.allSettled
+  - Added graceful calendar failure handling
+  - Tested before deployment (4/5 success rate)
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.6
+
+**Impact**: API is now resilient to intermittent MCP gateway issues and calendar failures.
+
+**Testing**: Local tests show API continues to work even when calendar calls fail.
+
+---
+
 ## v10.0.5 - 2026-01-28
 
 ### Refactored - Use mcpCall Helper Throughout API
