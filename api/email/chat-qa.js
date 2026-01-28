@@ -86,8 +86,8 @@ export default async function handler(req, res) {
     console.log(`📧 Message ID: ${email_context?.email_id || email_context?.message_id || 'Not provided'}`);
     console.log(`📋 Task ID: ${task_context?.task_id || task_context?.task_gid || 'Not provided'}`);
 
-    // Build context for AI
-    let fullPrompt = question;
+    // Build context for AI - combine email and/or task context
+    let contextParts = [];
 
     if (email_context) {
       const message_id = email_context.email_id || email_context.message_id;
@@ -101,13 +101,9 @@ Received: ${email_context.received || 'Unknown'}
 Preview: ${email_context.preview || ''}
 
 Full Email Body:
-${email_context.body || email_context.preview || 'No content available'}
+${email_context.body || email_context.preview || 'No content available'}`;
 
----
-
-User Question: ${question}`;
-
-      fullPrompt = emailData;
+      contextParts.push(emailData);
     }
 
     if (task_context) {
@@ -132,14 +128,15 @@ Comments: ${task_context.comments?.length || 0} comment(s)
 ${task_context.comments && task_context.comments.length > 0 ? '\nRecent Comments:\n' + task_context.comments.slice(-3).map(c => `  - ${c.created_by?.name}: ${c.text}`).join('\n') : ''}
 
 Attachments: ${task_context.attachments?.length || 0} file(s)
-${task_context.attachments && task_context.attachments.length > 0 ? '\nAttachments:\n' + task_context.attachments.map(a => `  - ${a.name}`).join('\n') : ''}
+${task_context.attachments && task_context.attachments.length > 0 ? '\nAttachments:\n' + task_context.attachments.map(a => `  - ${a.name}`).join('\n') : ''}`;
 
----
-
-User Question: ${question}`;
-
-      fullPrompt = taskData;
+      contextParts.push(taskData);
     }
+
+    // Combine all context parts with the user's question
+    const fullPrompt = contextParts.length > 0
+      ? contextParts.join('\n\n---\n\n') + '\n\n---\n\nUser Question: ' + question
+      : question;
 
     // Build messages array with conversation history
     let messages = [];
