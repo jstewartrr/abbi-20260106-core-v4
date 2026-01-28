@@ -1,14 +1,27 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.2.0 - Use sm-mcp-gateway-east with correct credentials (tested and verified)
+// Version: 2.2.1 - Use proven mcpCall helper from debug-executive.js
 const SNOWFLAKE_MCP = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_MCP = 'https://mcp.abbi-ai.com/mcp';
+
+// Helper function - copied from debug-executive.js (known working)
+async function mcpCall(url, tool, args = {}) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: args }, id: Date.now() })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const content = data.result?.content?.[0];
+  return content?.type === 'text' ? JSON.parse(content.text) : content;
+}
 
 export default async function handler(req, res) {
   // Set cache control headers to prevent caching
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.2.0');
+  res.setHeader('X-API-Version', '2.3.0');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -16,72 +29,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('=== API v2.2.0 - Fetching triaged emails ===');
+    console.log('=== API v2.3.0 - Fetching triaged emails using mcpCall ===');
     console.log('Snowflake MCP:', SNOWFLAKE_MCP);
 
-    // Fetch emails and calendar in parallel
-    const [snowflakeResponse, calendarResponse] = await Promise.all([
+    // Fetch emails and calendar in parallel using mcpCall helper
+    const [results, calendarResults] = await Promise.all([
       // Query Hive Mind table directly via Snowflake
-      fetch(SNOWFLAKE_MCP, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'sm_query_snowflake',
-            arguments: {
-              sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
-                    FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
-                    WHERE CATEGORY = 'triaged_email'
-                      AND (DETAILS:processed IS NULL OR DETAILS:processed = FALSE)
-                    ORDER BY CREATED_AT DESC
-                    LIMIT 100`
-            }
-          },
-          id: 1
-        })
+      mcpCall(SNOWFLAKE_MCP, 'sm_query_snowflake', {
+        sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
+              FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
+              WHERE CATEGORY = 'triaged_email'
+                AND (DETAILS:processed IS NULL OR DETAILS:processed = FALSE)
+              ORDER BY CREATED_AT DESC
+              LIMIT 100`
       }),
       // Fetch calendar events from M365 (today and tomorrow)
-      fetch(M365_MCP, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'm365_list_calendar_events',
-            arguments: {
-              user: 'jstewart@middleground.com',
-              start_date: new Date().toISOString().split('T')[0],
-              end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-            }
-          },
-          id: 2
-        })
+      mcpCall(M365_MCP, 'm365_list_calendar_events', {
+        user: 'jstewart@middleground.com',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       })
     ]);
-
-    if (!snowflakeResponse.ok) {
-      throw new Error(`Snowflake error: ${snowflakeResponse.statusText}`);
-    }
-
-    const snowflakeData = await snowflakeResponse.json();
-
-    // Check for MCP error
-    if (snowflakeData.error) {
-      console.error('Snowflake MCP error:', snowflakeData.error);
-      throw new Error(`Snowflake error: ${snowflakeData.error.message || JSON.stringify(snowflakeData.error)}`);
-    }
-
-    // sm-mcp-gateway format: result.content[0].text (like query-snowflake-simple.js)
-    if (!snowflakeData.result || !snowflakeData.result.content || !snowflakeData.result.content[0]) {
-      console.error('Invalid Snowflake response:', JSON.stringify(snowflakeData).substring(0, 500));
-      throw new Error('Invalid response from Snowflake');
-    }
-
-    const resultText = snowflakeData.result.content[0].text;
-    const results = JSON.parse(resultText);
 
     if (!results.success) {
       throw new Error(results.error || 'Snowflake query failed');
@@ -91,16 +59,8 @@ export default async function handler(req, res) {
       console.log('No triaged emails found');
     }
 
-    // Parse calendar response
-    let calendarEvents = [];
-    if (calendarResponse.ok) {
-      const calendarData = await calendarResponse.json();
-      const calendarContent = calendarData.result?.content?.[0];
-      if (calendarContent && calendarContent.type === 'text') {
-        const calendarResults = JSON.parse(calendarContent.text);
-        calendarEvents = calendarResults.events || calendarResults.value || [];
-      }
-    }
+    // Extract calendar events from response
+    const calendarEvents = calendarResults.events || calendarResults.value || [];
 
     // Transform Hive Mind entries to email format expected by dashboard
     const emails = results.data.map(row => {

@@ -1,5 +1,37 @@
 # Dashboard Version Changelog
 
+## v10.0.5 - 2026-01-28
+
+### Refactored - Use mcpCall Helper Throughout API
+
+Refactored triaged-emails API to use the proven mcpCall helper function throughout, eliminating manual fetch() and response parsing code.
+
+**Testing Process**:
+1. Created mcpCall helper function copied from debug-executive.js (known working)
+2. Refactored main try block to use mcpCall for both Snowflake and M365 calls
+3. Created test script /tmp/test_refactored_api.js - SUCCESS (returned 3 emails, 25 calendar events)
+4. Deployed after confirming tests pass
+
+**Root Cause**: Previous version (v10.0.4) added mcpCall helper but didn't refactor the main try block to use it, causing continued JSON parsing errors.
+
+**Solution**:
+- Replaced manual Promise.all([fetch()...]) with Promise.all([mcpCall()...])
+- Eliminated ~70 lines of manual response parsing and error handling
+- Now uses same proven pattern as debug-executive.js, contacts/, and asana/ APIs
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - API Version 2.3.0
+  - Refactored to use mcpCall helper for both Snowflake and M365 calls
+  - Simplified from ~100 lines to ~30 lines in main handler
+  - Tested before deployment
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.5
+
+**Impact**: API code is now simpler, more maintainable, and uses proven working patterns consistently.
+
+**Testing**: Local test script confirmed 3 emails and 25 calendar events returned successfully.
+
+---
+
 ## v10.0.4 - 2026-01-28
 
 ### Bug Fix - Use sm-mcp-gateway-east with Verified Working Credentials
