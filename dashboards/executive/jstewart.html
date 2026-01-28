@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.4 - Fix task rendering typo -->
+<!-- ABBI Executive Dashboard v10.1.5 - Disable auto-expand for debugging -->
 <!-- Force refresh: 2026-01-28T01:20:00Z -->
-<!-- Change: Fixed 'tasks-' to 'task-' in renderContent check -->
+<!-- Change: Temporarily disabled task auto-expand to debug rendering issue -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.4 | ABBI</title>
+    <title>Executive Dashboard v10.1.5 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -244,7 +244,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.4</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.5</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -715,13 +715,14 @@
             }
 
             // Auto-open first task in the category for task views
-            if (view.startsWith('task-')) {
-                const filteredTasks = getCurrentTaskList();
-                if (filteredTasks && filteredTasks.length > 0) {
-                    // Open the first task automatically
-                    toggleTask(filteredTasks[0].gid);
-                }
-            }
+            // DISABLED: Temporarily disabled auto-expand for debugging
+            // if (view.startsWith('task-')) {
+            //     const filteredTasks = getCurrentTaskList();
+            //     if (filteredTasks && filteredTasks.length > 0) {
+            //         // Open the first task automatically
+            //         toggleTask(filteredTasks[0].gid);
+            //     }
+            // }
         }
 
         // Update dashboard with live data
