@@ -48,12 +48,16 @@ async function analyzeTaskWithAI(task) {
 Analyze this Asana task and provide structured analysis:
 
 Task Name: ${task.name}
+Project: ${task.project || 'Unknown'}
+Section: ${task.section || 'No section'}
 Assignee: ${task.assignee?.name || 'Unassigned'}
 Due Date: ${task.due_on || 'No due date'}
-Section: ${task.section || 'No section'}
+Category: ${task.category}
 Description: ${task.notes || 'No description'}
 Completed: ${task.completed ? 'Yes' : 'No'}
-${task.attachments?.length > 0 ? `Attachments: ${task.attachments.map(a => a.name).join(', ')}` : ''}
+${task.subtasks?.length > 0 ? `Subtasks (${task.subtasks.length}): ${task.subtasks.map(s => `${s.name} [${s.completed ? '✓' : ' '}]`).join(', ')}` : 'Subtasks: None'}
+${task.comments?.length > 0 ? `Recent Comments (${task.comments.length}): ${task.comments.slice(-3).map(c => `${c.created_by?.name}: ${c.text?.substring(0, 100)}`).join(' | ')}` : 'Comments: None'}
+${task.attachments?.length > 0 ? `Attachments (${task.attachments.length}): ${task.attachments.map(a => a.name).join(', ')}` : 'Attachments: None'}
 
 Return ONLY valid JSON (no markdown):
 {
@@ -118,41 +122,16 @@ export default async function handler(req, res) {
     const startTime = Date.now();
     const userConfig = {
       asanaGid: '373563475019846',
-      mpDashboard: '1209103059237595',
-      weeklyItems: '1209022810695498'
+      mpDashboard: '1204554210439476', // MP Project Dashboard (correct ID)
+      weeklyItems: '1212197943409021'  // Johns Weekly Items (correct ID)
     };
 
-    // Fetch all required tasks in parallel
-    const [
-      myRecentSubmissions,
-      myWeeklyItems,
-      teamWeeklyCompleted,
-      allMpTasks,
-      allWeeklyTasks
-    ] = await Promise.all([
-      // 1. My tasks in MP Dashboard Recent Submissions section
-      mcpCall(GATEWAY_URL, 'asana_list_tasks', {
-        project_id: userConfig.mpDashboard,
-        assignee: userConfig.asanaGid,
-        completed: false
-      }),
-      // 2. My tasks in Weekly Items
-      mcpCall(GATEWAY_URL, 'asana_list_tasks', {
-        project_id: userConfig.weeklyItems,
-        assignee: userConfig.asanaGid,
-        completed: false
-      }),
-      // 3. Team completed tasks (last 24h) in Weekly Items
-      mcpCall(GATEWAY_URL, 'asana_list_tasks', {
-        project_id: userConfig.weeklyItems,
-        completed_since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      }),
-      // 4. All incomplete MP Dashboard tasks (for team tasks due today/overdue)
+    // Fetch all incomplete tasks from both projects in parallel
+    const [allMpTasks, allWeeklyTasks] = await Promise.all([
       mcpCall(GATEWAY_URL, 'asana_list_tasks', {
         project_id: userConfig.mpDashboard,
         completed: false
       }),
-      // 5. All incomplete Weekly Items (for team tasks due today/overdue)
       mcpCall(GATEWAY_URL, 'asana_list_tasks', {
         project_id: userConfig.weeklyItems,
         completed: false
@@ -162,45 +141,67 @@ export default async function handler(req, res) {
     const today = new Date().toISOString().split('T')[0];
     const allTasks = [];
 
-    // Process my tasks - Recent Submissions (filter by section)
-    const myRecent = (myRecentSubmissions.tasks || []).filter(t =>
-      t.section?.includes('Recent') || t.section?.includes('Submission')
-    );
-    myRecent.forEach(t => allTasks.push({ ...t, category: 'My Tasks - Recent Submissions' }));
+    // Combine tasks from both projects
+    const combinedTasks = [
+      ...(allMpTasks.tasks || []).map(t => ({ ...t, project: 'MP Project Dashboard' })),
+      ...(allWeeklyTasks.tasks || []).map(t => ({ ...t, project: 'Johns Weekly Items' }))
+    ];
 
-    // Process my tasks - Weekly Items
-    (myWeeklyItems.tasks || []).forEach(t =>
-      allTasks.push({ ...t, category: 'My Tasks - Weekly Items' })
-    );
+    // Categorize tasks based on assignee and due date
+    for (const task of combinedTasks) {
+      const isAssignedToMe = task.assignee?.gid === userConfig.asanaGid;
+      const dueDate = task.due_on ? task.due_on.split('T')[0] : null;
 
-    // Process team completed (exclude me, only last 24h)
-    (teamWeeklyCompleted.tasks || [])
-      .filter(t => t.assignee?.gid !== userConfig.asanaGid && t.completed)
-      .forEach(t => allTasks.push({ ...t, category: 'Team Completed (24h)' }));
-
-    // Process team due today/overdue (exclude me)
-    const teamTasks = [
-      ...(allMpTasks.tasks || []),
-      ...(allWeeklyTasks.tasks || [])
-    ].filter(t => t.assignee?.gid !== userConfig.asanaGid && !t.completed);
-
-    teamTasks.forEach(t => {
-      if (t.due_on) {
-        const dueDate = t.due_on.split('T')[0];
-        if (dueDate < today) {
-          allTasks.push({ ...t, category: 'Team Past Due' });
-        } else if (dueDate === today) {
-          allTasks.push({ ...t, category: 'Team Due Today' });
+      if (isAssignedToMe && dueDate) {
+        // Tasks assigned TO me
+        if (dueDate === today) {
+          allTasks.push({ ...task, category: 'My Tasks Due Today' });
+        } else if (dueDate < today) {
+          allTasks.push({ ...task, category: 'My Tasks Past Due' });
+        }
+      } else if (!isAssignedToMe && task.assignee && dueDate) {
+        // Tasks assigned BY me to others (delegated)
+        // Note: Asana doesn't have "created_by" in list API, so we assume tasks
+        // in user's projects that are assigned to others are delegated by user
+        if (dueDate === today) {
+          allTasks.push({ ...task, category: 'Delegated Tasks Due Today' });
+        } else if (dueDate < today) {
+          allTasks.push({ ...task, category: 'Delegated Tasks Past Due' });
         }
       }
-    });
+    }
 
     console.log(`📊 Total tasks collected: ${allTasks.length}`);
-    console.log(`   - My Recent Submissions: ${myRecent.length}`);
-    console.log(`   - My Weekly Items: ${(myWeeklyItems.tasks || []).length}`);
-    console.log(`   - Team Completed: ${allTasks.filter(t => t.category === 'Team Completed (24h)').length}`);
-    console.log(`   - Team Due Today: ${allTasks.filter(t => t.category === 'Team Due Today').length}`);
-    console.log(`   - Team Past Due: ${allTasks.filter(t => t.category === 'Team Past Due').length}`);
+    console.log(`   - My Tasks Due Today: ${allTasks.filter(t => t.category === 'My Tasks Due Today').length}`);
+    console.log(`   - My Tasks Past Due: ${allTasks.filter(t => t.category === 'My Tasks Past Due').length}`);
+    console.log(`   - Delegated Tasks Due Today: ${allTasks.filter(t => t.category === 'Delegated Tasks Due Today').length}`);
+    console.log(`   - Delegated Tasks Past Due: ${allTasks.filter(t => t.category === 'Delegated Tasks Past Due').length}`);
+
+    // Enrich tasks with subtasks, comments, and attachments
+    console.log('\n📦 Fetching task details (subtasks, comments, attachments)...');
+    for (const task of allTasks) {
+      try {
+        // Fetch subtasks, comments, and attachments in parallel for each task
+        const [subtasksResult, commentsResult, attachmentsResult] = await Promise.all([
+          mcpCall(GATEWAY_URL, 'asana_get_subtasks', { task_id: task.gid }).catch(() => ({ subtasks: [] })),
+          mcpCall(GATEWAY_URL, 'asana_get_task_comments', { task_id: task.gid }).catch(() => ({ comments: [] })),
+          mcpCall(GATEWAY_URL, 'asana_get_task', { task_id: task.gid }).catch(() => ({ attachments: [] }))
+        ]);
+
+        task.subtasks = subtasksResult.subtasks || [];
+        task.comments = commentsResult.comments || [];
+        task.attachments = attachmentsResult.attachments || [];
+
+        // Add rate limiting to avoid hitting API limits
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`   Error enriching task ${task.gid}:`, error.message);
+        task.subtasks = [];
+        task.comments = [];
+        task.attachments = [];
+      }
+    }
+    console.log(`   ✓ Enriched ${allTasks.length} tasks with additional details`);
 
     // AI analysis for each task
     console.log('\n🧠 Analyzing tasks with AI...');
@@ -233,10 +234,15 @@ export default async function handler(req, res) {
     if (analyzedTasks.length > 0) {
       const values = analyzedTasks.map(t => {
         const escape = (str) => str ? str.replace(/'/g, "''").substring(0, 5000) : '';
+        const subtasksJson = escape(JSON.stringify(t.subtasks || []));
+        const commentsJson = escape(JSON.stringify(t.comments || []));
+        const attachmentsJson = escape(JSON.stringify(t.attachments || []));
         return `(
           '${t.gid}',
           '${escape(t.name)}',
+          '${escape(t.project || 'Unknown')}',
           '${escape(t.assignee?.name || 'Unassigned')}',
+          '${escape(t.assignee?.gid || '')}',
           '${t.due_on || ''}',
           '${t.category}',
           '${escape(t.section || '')}',
@@ -246,6 +252,9 @@ export default async function handler(req, res) {
           '${escape(t.action_plan)}',
           '${escape(t.priority_assessment)}',
           '${escape(t.blockers)}',
+          '${subtasksJson}',
+          '${commentsJson}',
+          '${attachmentsJson}',
           '${escape(t.permalink_url || '')}',
           CURRENT_TIMESTAMP()
         )`;
@@ -253,9 +262,10 @@ export default async function handler(req, res) {
 
       const insertSQL = `
         INSERT INTO SOVEREIGN_MIND.RAW.ASANA_TASK_ANALYSIS (
-          TASK_GID, TASK_NAME, ASSIGNEE_NAME, DUE_DATE, CATEGORY, SECTION,
-          COMPLETED, AI_SUMMARY, DRAFT_COMMENT, ACTION_PLAN, PRIORITY_ASSESSMENT,
-          BLOCKERS, PERMALINK_URL, PROCESSED_AT
+          TASK_GID, TASK_NAME, PROJECT, ASSIGNEE_NAME, ASSIGNEE_GID, DUE_DATE,
+          CATEGORY, SECTION, COMPLETED, AI_SUMMARY, DRAFT_COMMENT, ACTION_PLAN,
+          PRIORITY_ASSESSMENT, BLOCKERS, SUBTASKS_JSON, COMMENTS_JSON,
+          ATTACHMENTS_JSON, PERMALINK_URL, PROCESSED_AT
         ) VALUES ${values}
       `;
 
