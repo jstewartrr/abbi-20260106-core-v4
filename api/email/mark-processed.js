@@ -1,5 +1,5 @@
 // Mark email as processed (reviewed) in Snowflake cache
-const SNOWFLAKE_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
+const SNOWFLAKE_GATEWAY = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 
 export const config = {
   maxDuration: 60,
