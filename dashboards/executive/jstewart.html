@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.2.2 - AI can now comment on tasks -->
-<!-- Force refresh: 2026-01-28T10:00:00Z -->
-<!-- Change: Added asana_add_comment and asana_complete_task tools to AI -->
+<!-- ABBI Executive Dashboard v10.2.3 - Streamline approval workflow -->
+<!-- Force refresh: 2026-01-28T10:15:00Z -->
+<!-- Change: Approve and Reject are now one-click, only Request Changes prompts -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.2.2 | ABBI</title>
+    <title>Executive Dashboard v10.2.3 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -251,7 +251,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.2.2</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.2.3</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -4270,19 +4270,16 @@
 
         // Approve task (for approval requests)
         async function approveTask(taskGid, taskName) {
-            const comment = prompt('Approval comment (optional):', 'Approved by John Stewart');
-            if (comment === null) return; // User cancelled
-
             try {
                 console.log('Approving task:', taskGid);
 
-                // Add approval comment to Asana task
+                // Add approval comment to Asana task (no prompt - one click approve)
                 const response = await fetch('/api/asana/add-comment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         task_id: taskGid,
-                        comment: `✅ **APPROVED**\n\n${comment}`
+                        comment: `✅ **APPROVED**\n\nApproved by John Stewart`
                     })
                 });
 
@@ -4350,13 +4347,8 @@
 
         // Reject task
         async function rejectTask(taskGid, taskName) {
-            const reason = prompt('Reason for rejection:', '');
-            if (!reason || reason.trim() === '') {
-                alert('Please provide a reason for rejection.');
-                return;
-            }
-
-            const confirm = window.confirm(`Are you sure you want to REJECT this approval?\n\n"${taskName}"\n\nThis will mark the task as complete with a rejection notice.`);
+            // Simple confirmation - no reason required
+            const confirm = window.confirm(`REJECT this approval?\n\n"${taskName}"\n\nThis will mark the task as complete with a rejection notice.`);
             if (!confirm) return;
 
             try {
@@ -4368,7 +4360,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         task_id: taskGid,
-                        comment: `❌ **REJECTED**\n\n${reason}\n\n— John Stewart`
+                        comment: `❌ **REJECTED**\n\nRejected by John Stewart`
                     })
                 });
 
