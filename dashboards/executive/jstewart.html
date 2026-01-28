@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.10 - Fix task formatting and fetch full details -->
-<!-- Force refresh: 2026-01-28T08:30:00Z -->
-<!-- Change: Fetch subtasks/comments/attachments on expand, improve description formatting -->
+<!-- ABBI Executive Dashboard v10.1.11 - Fix task button styling -->
+<!-- Force refresh: 2026-01-28T08:45:00Z -->
+<!-- Change: Add missing CSS classes and fix button styling for task view -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.10 | ABBI</title>
+    <title>Executive Dashboard v10.1.11 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -211,7 +211,14 @@
         .hive-src{font-size:.7rem;color:var(--text3)}
         .hive-sum{font-size:.8rem;color:var(--text2);margin-top:4px}
         .hive-time{font-size:.65rem;color:var(--text3);margin-top:4px}
-        
+
+        /* Expanded Task/Email View */
+        .expanded-email-view{background:var(--bg);border-radius:8px;overflow:hidden}
+        .expanded-email-header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border);background:var(--bg2)}
+        .expanded-email-navigation{display:flex;align-items:center;gap:8px}
+        .expanded-email-content{padding:20px;color:var(--text)}
+        .email-ai-summary{background:var(--bg2);padding:16px;border-radius:8px;border-left:3px solid var(--purple)}
+
         @media(max-width:768px){
             .section-grid{grid-template-columns:1fr}
             .stats-grid{grid-template-columns:repeat(2,1fr)}
@@ -244,7 +251,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.10</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.11</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -4073,7 +4080,7 @@
 
             // Header with navigation
             html += '<div class="expanded-email-header">';
-            html += '<button onclick="closeExpandedTask()" class="email-action-btn">← Back to List</button>';
+            html += '<button onclick="closeExpandedTask()" class="response-btn">← Back to List</button>';
             html += '<div class="expanded-email-navigation">';
 
             // Get current task list for navigation
@@ -4082,14 +4089,14 @@
 
             if (currentIndex > 0) {
                 const prevTask = currentTasks[currentIndex - 1];
-                html += '<button onclick="toggleTask(\'' + prevTask.gid + '\')" class="email-action-btn">← Previous</button>';
+                html += '<button onclick="toggleTask(\'' + prevTask.gid + '\')" class="response-btn">← Previous</button>';
             }
 
             html += '<span style="margin:0 10px;color:var(--text3)">' + (currentIndex + 1) + ' of ' + currentTasks.length + '</span>';
 
             if (currentIndex < currentTasks.length - 1) {
                 const nextTask = currentTasks[currentIndex + 1];
-                html += '<button onclick="toggleTask(\'' + nextTask.gid + '\')" class="email-action-btn">Next →</button>';
+                html += '<button onclick="toggleTask(\'' + nextTask.gid + '\')" class="response-btn">Next →</button>';
             }
 
             html += '</div>';
@@ -4165,10 +4172,10 @@
             }
 
             // Action buttons
-            html += '<div class="email-actions">';
-            html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="email-action-btn primary">Complete & Advance</button>';
-            html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="email-action-btn">Add Comment</button>';
-            html += '<a href="' + (task.permalink_url || 'https://app.asana.com/0/' + task.gid) + '" target="_blank" class="email-action-btn" onclick="event.stopPropagation()">Open in Asana</a>';
+            html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
+            html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="response-btn primary" style="flex:1;min-width:160px">✓ Complete & Advance</button>';
+            html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="response-btn" style="flex:1;min-width:160px">💬 Add Comment</button>';
+            html += '<a href="' + (task.permalink_url || 'https://app.asana.com/0/' + task.gid) + '" target="_blank" class="response-btn" style="flex:1;min-width:160px;text-decoration:none" onclick="event.stopPropagation()">🔗 Open in Asana</a>';
             html += '</div>';
 
             html += '</div>'; // Close expanded-email-content
