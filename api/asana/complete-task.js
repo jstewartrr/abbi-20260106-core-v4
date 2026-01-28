@@ -60,10 +60,9 @@ export default async function handler(req, res) {
 
     console.log(`Marking task ${task_id} as complete...`);
 
-    // Update task to completed via Asana MCP
-    const result = await mcpCall('asana_update_task', {
-      task_id: task_id,
-      completed: true
+    // Complete task via Asana MCP
+    const result = await mcpCall('asana_complete_task', {
+      task_id: task_id
     });
 
     console.log('✓ Task marked as complete');
