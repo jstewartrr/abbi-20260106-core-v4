@@ -96,6 +96,14 @@ export default async function handler(req, res) {
 
       if (!dueDate) continue; // Skip tasks with no due date
 
+      // Format notes/description properly
+      const notes = task.notes || '';
+      const description = notes.trim() || 'No description provided.';
+
+      // Parse subtasks if available
+      const subtasks = task.num_subtasks > 0 ? [] : []; // Will be populated if we fetch details
+      const subtasksCompleted = 0;
+
       const cleanTask = {
         gid: task.gid,
         name: task.name,
@@ -106,12 +114,13 @@ export default async function handler(req, res) {
         },
         due_date: dueDate,
         section: task.memberships?.[0]?.section?.name || '',
-        ai_summary: `Task: ${task.name}. ${task.notes || 'No description provided.'}`,
-        subtasks: [],
-        subtasks_count: 0,
-        subtasks_completed: 0,
+        description: description,
+        notes: notes,
+        subtasks: subtasks,
+        subtasks_count: task.num_subtasks || 0,
+        subtasks_completed: subtasksCompleted,
         comments: [],
-        comments_count: 0,
+        comments_count: task.num_hearts || 0, // Asana uses hearts/likes
         attachments: [],
         attachments_count: 0,
         permalink_url: task.permalink_url || `https://app.asana.com/0/${task.gid}`

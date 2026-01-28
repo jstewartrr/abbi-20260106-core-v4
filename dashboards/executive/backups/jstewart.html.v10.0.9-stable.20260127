@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.10 - Fix task formatting and fetch full details -->
-<!-- Force refresh: 2026-01-28T08:30:00Z -->
-<!-- Change: Fetch subtasks/comments/attachments on expand, improve description formatting -->
+<!-- ABBI Executive Dashboard v10.0.9 - Auto-expand first email when category clicked -->
+<!-- Force refresh: 2026-01-28T01:20:00Z -->
+<!-- Change: API v2.2.0 tested and confirmed working before deployment -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.10 | ABBI</title>
+    <title>Executive Dashboard v10.0.9 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -244,7 +244,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.10</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.0.9</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -301,22 +301,17 @@
                         <span style="display:flex;align-items:center;gap:8px"><span class="collapse-icon">▼</span> RECEIVED TASKS</span>
                     </div>
                     <div class="metric-card-content">
-                    <div class="metric-row" data-view="task-my-due-today" onclick="switchMetricView('task-my-due-today')">
-                        <span class="metric-label">My Tasks Due Today</span>
-                        <span class="metric-value amber" id="task-my-due-today">0</span>
+                    <div class="metric-row" data-view="tasks-received" onclick="switchMetricView('tasks-received')">
+                        <span class="metric-label">Received Today</span>
+                        <span class="metric-value" id="tasks-received-today">0</span>
                     </div>
-                    <div class="metric-row" data-view="task-my-past-due" onclick="switchMetricView('task-my-past-due')">
-                        <span class="metric-label">My Tasks Past Due</span>
-                        <span class="metric-value high" id="task-my-past-due">0</span>
+                    <div class="metric-row" data-view="tasks-due" onclick="switchMetricView('tasks-due')">
+                        <span class="metric-label">Due Today</span>
+                        <span class="metric-value amber" id="tasks-due-today">0</span>
                     </div>
-                    <div style="border-top:1px solid var(--border);margin:8px 0;opacity:0.3"></div>
-                    <div class="metric-row" data-view="task-delegated-due-today" onclick="switchMetricView('task-delegated-due-today')">
-                        <span class="metric-label">Delegated Due Today</span>
-                        <span class="metric-value amber" id="task-delegated-due-today">0</span>
-                    </div>
-                    <div class="metric-row" data-view="task-delegated-past-due" onclick="switchMetricView('task-delegated-past-due')">
-                        <span class="metric-label">Delegated Past Due</span>
-                        <span class="metric-value high" id="task-delegated-past-due">0</span>
+                    <div class="metric-row" data-view="tasks-overdue" onclick="switchMetricView('tasks-overdue')">
+                        <span class="metric-label">Past Due</span>
+                        <span class="metric-value high" id="tasks-past-due">0</span>
                     </div>
                     </div>
                 </div>
@@ -489,8 +484,6 @@
         const CONFIG = {
             VALID_TOKEN_HASH: '9b74f3a0e5c72a838737cd59fd71a2e62324b4860c236da7b801f980c65f58f0',
             API_BASE: '/api/email/triaged-emails',
-            TASKS_API: '/api/asana/tasks-direct',  // Direct Asana fetch (faster, no Snowflake)
-            TASK_DETAILS_API: '/api/asana/task-details',  // Fetch full task details on expand
             DEBUG: true  // Enable debug mode
         };
 
@@ -531,8 +524,6 @@
         let currentView = 'email-urgent-priority'; // Show urgent/priority emails by default
         let expandedEmailId = null;
         let expandedMeetingId = null;
-        let expandedTaskId = null; // Track expanded Asana task
-        let isExpandingTask = false; // Flag to prevent renderContent() interference
         let leftPaneCollapsed = false;
         let rightPaneCollapsed = false;
         
@@ -605,13 +596,10 @@
                         categories: ['Processed', email.category] // Add Processed tag and category
                     }));
 
-                    // Preserve existing tasks (loaded separately by loadAsanaTasks)
-                    const existingTasks = liveData.tasks;
-
                     liveData = {
                         emails: emails,
                         calendar: data.calendar || [],
-                        tasks: existingTasks || [],
+                        tasks: [],
                         activity: []
                     };
                     console.log('✅ Data loaded successfully:');
@@ -644,9 +632,8 @@
         // Switch view based on metric row clicked
         async function switchMetricView(view) {
             currentView = view;
-            // Reset expanded email/task when switching views
+            // Reset expanded email when switching views
             expandedEmailId = null;
-            expandedTaskId = null;
 
             // Update active state on metric rows
             document.querySelectorAll('.metric-row').forEach(row => {
@@ -673,10 +660,6 @@
 
             // Set view title
             const titles = {
-                'task-my-due-today': 'My Tasks Due Today',
-                'task-my-past-due': 'My Tasks Past Due',
-                'task-delegated-due-today': 'Delegated Tasks Due Today',
-                'task-delegated-past-due': 'Delegated Tasks Past Due',
                 'tasks-received': 'Tasks Received Today',
                 'tasks-due': 'Tasks Due Today',
                 'tasks-overdue': 'Past Due Tasks',
@@ -701,25 +684,9 @@
             };
             document.getElementById('view-title').textContent = titles[view] || 'Dashboard';
 
-            // Load tasks if viewing a task category
-            if (view.startsWith('task-')) {
-                await loadAsanaTasks();
-            }
-
             // Fetch data if needed
             await fetchLiveData();
-
-            // Check if we'll auto-expand a task
-            let willAutoExpandTask = false;
-            if (view.startsWith('task-')) {
-                const filteredTasks = getCurrentTaskList();
-                willAutoExpandTask = filteredTasks && filteredTasks.length > 0;
-            }
-
-            // Only render if NOT about to auto-expand (which will render itself)
-            if (!willAutoExpandTask) {
-                renderContent();
-            }
+            renderContent();
 
             // Auto-open first email in the category for email views
             if (view.startsWith('email-')) {
@@ -729,14 +696,6 @@
                     toggleEmail(filteredEmails[0].id);
                 }
             }
-
-            // Auto-open first task in the category for task views
-            if (willAutoExpandTask) {
-                const filteredTasks = getCurrentTaskList();
-                isExpandingTask = true; // Set flag to block any renderContent calls
-                await toggleTask(filteredTasks[0].gid);
-                isExpandingTask = false;
-            }
         }
 
         // Update dashboard with live data
@@ -745,8 +704,23 @@
             const now = new Date();
             const todayEST = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
-            // Note: Task metrics are now updated by loadAsanaTasks() function
-            // Old task update code removed (tasks-received-today, tasks-due-today, tasks-past-due no longer exist)
+            // Filter tasks by due date
+            const tasksToday = liveData.tasks.filter(t => {
+                if (!t.due_on && !t.due_date) return false;
+                const dueDate = new Date(t.due_on || t.due_date);
+                return dueDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === todayEST;
+            });
+
+            const tasksOverdue = liveData.tasks.filter(t => {
+                if (!t.due_on && !t.due_date) return false;
+                const dueDate = new Date(t.due_on || t.due_date);
+                return dueDate < now;
+            });
+
+            // Update task metrics
+            document.getElementById('tasks-received-today').textContent = liveData.tasks.length || 0;
+            document.getElementById('tasks-due-today').textContent = tasksToday.length || 0;
+            document.getElementById('tasks-past-due').textContent = tasksOverdue.length || 0;
 
             // Count UNPROCESSED (emails WITHOUT "Processed" tag)
             const unprocessedCount = liveData.emails.filter(e =>
@@ -3764,7 +3738,7 @@
                 return;
             }
 
-            if (currentView.startsWith('task-')) {
+            if (currentView.startsWith('tasks-')) {
                 renderTaskList(container);
             } else if (currentView.startsWith('email-')) {
                 renderEmailList(container);
@@ -3833,135 +3807,73 @@
         }
 
         function renderTaskList(container) {
-            // Get tasks for current view
-            let filteredTasks = [];
-            let viewTitle = 'Tasks';
+            const now = new Date();
+            const todayEST = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
 
-            if (!liveData.tasks) {
-                // Tasks not loaded yet, load them now
-                loadAsanaTasks();
-                container.innerHTML = '<div class="no-selection"><p>Loading tasks...</p></div>';
-                return;
+            // Filter tasks based on current view
+            let filteredTasks = liveData.tasks || [];
+
+            if (currentView === 'tasks-received') {
+                // Show all tasks (received today)
+                filteredTasks = filteredTasks;
+            } else if (currentView === 'tasks-due') {
+                // Show tasks due today
+                filteredTasks = filteredTasks.filter(t => {
+                    if (!t.due_on && !t.due_date) return false;
+                    const dueDate = new Date(t.due_on || t.due_date);
+                    return dueDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' }) === todayEST;
+                });
+            } else if (currentView === 'tasks-overdue') {
+                // Show overdue tasks
+                filteredTasks = filteredTasks.filter(t => {
+                    if (!t.due_on && !t.due_date) return false;
+                    const dueDate = new Date(t.due_on || t.due_date);
+                    return dueDate < now;
+                });
             }
-
-            // Map view ID to tasks array and title
-            const viewMapping = {
-                'task-my-due-today': {
-                    tasks: liveData.tasks.my_tasks_due_today || [],
-                    title: 'My Tasks Due Today'
-                },
-                'task-my-past-due': {
-                    tasks: liveData.tasks.my_tasks_past_due || [],
-                    title: 'My Tasks Past Due'
-                },
-                'task-delegated-due-today': {
-                    tasks: liveData.tasks.delegated_tasks_due_today || [],
-                    title: 'Delegated Tasks Due Today'
-                },
-                'task-delegated-past-due': {
-                    tasks: liveData.tasks.delegated_tasks_past_due || [],
-                    title: 'Delegated Tasks Past Due'
-                }
-            };
-
-            const viewData = viewMapping[currentView];
-            if (viewData) {
-                filteredTasks = viewData.tasks;
-                viewTitle = viewData.title;
-            }
-
-            // Update title with count
-            document.getElementById('view-title').textContent = `${viewTitle} (${filteredTasks.length})`;
 
             if (filteredTasks.length === 0) {
                 container.innerHTML = '<div class="no-selection"><p>No tasks found</p></div>';
                 return;
             }
 
-            // Render task list
-            container.innerHTML = filteredTasks.map((task, idx) => {
-                const id = task.gid || idx;
+            container.innerHTML = filteredTasks.slice(0, 20).map(task => {
+                const id = task.gid || task.id;
                 const name = task.name || 'Untitled';
-                const project = task.project || 'No project';
-                const section = task.section || '';
-                const assignee = task.assignee?.name || 'Unassigned';
-                const dueDate = task.due_date || 'No due date';
-                const subtasksInfo = task.subtasks_count > 0
-                    ? `${task.subtasks_completed}/${task.subtasks_count} subtasks`
-                    : '';
+                const project = task.projects && task.projects[0] ? task.projects[0].name : 'No project';
+                const dueDate = task.due_on || task.due_date || 'No due date';
+                const priority = task.priority || 'medium';
+                const link = `https://app.asana.com/0/${id}`;
 
-                return '<div class="email-item" onclick="toggleTask(\'' + id + '\')">' +
+                const isExpanded = expandedEmailId === id;
+
+                let html = '<div class="email-item ' + (isExpanded ? 'expanded' : '') + '" onclick="toggleEmail(\'' + id + '\')">' +
                     '<div class="email-header">' +
-                        '<div class="email-priority medium"></div>' +
+                        '<div class="email-priority ' + priority + '"></div>' +
                         '<div class="email-content">' +
-                            '<div class="email-from">' + escapeHtml(project) + (section ? ' > ' + escapeHtml(section) : '') + '</div>' +
+                            '<div class="email-from">' + escapeHtml(project) + '</div>' +
                             '<div class="email-subject">' + escapeHtml(name) + '</div>' +
-                            '<div class="email-preview">' +
-                                'Due: ' + escapeHtml(dueDate) + ' • ' +
-                                escapeHtml(assignee) +
-                                (subtasksInfo ? ' • ' + subtasksInfo : '') +
-                            '</div>' +
+                            '<div class="email-preview">Due: ' + escapeHtml(dueDate) + '</div>' +
                         '</div>' +
                         '<div class="email-meta">' +
-                            '<span class="email-time">' + formatDueDate(dueDate) + '</span>' +
+                            '<span class="email-expand-icon">►</span>' +
                         '</div>' +
-                    '</div>' +
-                '</div>';
+                    '</div>';
+
+                if (isExpanded) {
+                    html += '<div class="email-details">' +
+                        '<div class="email-full-preview">Task: ' + escapeHtml(name) + '<br>Project: ' + escapeHtml(project) + '<br>Due: ' + escapeHtml(dueDate) + '</div>' +
+                        '<div class="email-actions">' +
+                            '<a href="' + link + '" target="_blank" class="email-action-btn primary" onclick="event.stopPropagation()">Open in Asana</a>' +
+                        '</div>' +
+                    '</div>';
+                }
+
+                html += '</div>';
+                return html;
             }).join('');
         }
 
-        // Load Asana tasks from API
-        async function loadAsanaTasks() {
-            try {
-                console.log('📋 Loading Asana tasks from API...');
-
-                const res = await fetch(CONFIG.TASKS_API, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-                }
-
-                const data = await res.json();
-
-                if (!data.success) {
-                    throw new Error(data.error || 'Failed to load tasks');
-                }
-
-                console.log('✓ Tasks loaded:', data.counts);
-
-                // Store tasks in liveData grouped by category
-                liveData.tasks = {
-                    my_tasks_due_today: data.my_tasks_due_today || [],
-                    my_tasks_past_due: data.my_tasks_past_due || [],
-                    delegated_tasks_due_today: data.delegated_tasks_due_today || [],
-                    delegated_tasks_past_due: data.delegated_tasks_past_due || []
-                };
-
-                // Update sidebar counts
-                document.getElementById('task-my-due-today').textContent = data.counts.my_tasks_due_today || 0;
-                document.getElementById('task-my-past-due').textContent = data.counts.my_tasks_past_due || 0;
-                document.getElementById('task-delegated-due-today').textContent = data.counts.delegated_tasks_due_today || 0;
-                document.getElementById('task-delegated-past-due').textContent = data.counts.delegated_tasks_past_due || 0;
-
-                // Don't refresh if task is expanded or currently expanding
-                if (currentView.startsWith('task-') && !expandedTaskId && !isExpandingTask) {
-                    renderContent();
-                }
-
-                return data;
-            } catch (error) {
-                console.error('❌ Error loading tasks:', error);
-                // Set counts to 0 on error
-                document.getElementById('task-my-due-today').textContent = '0';
-                document.getElementById('task-my-past-due').textContent = '0';
-                document.getElementById('task-delegated-due-today').textContent = '0';
-                document.getElementById('task-delegated-past-due').textContent = '0';
-                return null;
-            }
-        }
 
         // Format email time
         function formatEmailTime(dateStr) {
@@ -3976,248 +3888,7 @@
             if (hours < 48) return 'Yesterday';
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
-
-        // Format due date for tasks
-        function formatDueDate(dateStr) {
-            if (!dateStr || dateStr === 'No due date') return '';
-            const date = new Date(dateStr);
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const taskDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-            const diffDays = Math.floor((taskDate - today) / 86400000);
-
-            if (diffDays === 0) return 'Today';
-            if (diffDays === -1) return '1d overdue';
-            if (diffDays < 0) return Math.abs(diffDays) + 'd overdue';
-            if (diffDays === 1) return 'Tomorrow';
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-
-        // Toggle task expanded view
-        async function toggleTask(taskGid) {
-            console.log('📋 Toggling task:', taskGid);
-
-            try {
-                if (expandedTaskId === taskGid) {
-                    // Collapse current task
-                    expandedTaskId = null;
-                    renderContent();
-                    return;
-                }
-
-                // Find the task in liveData
-                let task = null;
-                for (const category in liveData.tasks) {
-                    task = liveData.tasks[category].find(t => t.gid === taskGid);
-                    if (task) break;
-                }
-
-                if (!task) {
-                    console.error('Task not found:', taskGid);
-                    alert('Task not found: ' + taskGid);
-                    return;
-                }
-
-                console.log('Found task:', task.name);
-
-                // Set expanded task
-                expandedTaskId = taskGid;
-
-                // Fetch full task details (subtasks, comments, attachments)
-                console.log('Fetching full task details...');
-                try {
-                    const detailsRes = await fetch(`${CONFIG.TASK_DETAILS_API}?task_id=${taskGid}`);
-                    if (detailsRes.ok) {
-                        const detailsData = await detailsRes.json();
-                        if (detailsData.success) {
-                            // Merge full details into task object
-                            task.subtasks = detailsData.task.subtasks || [];
-                            task.subtasks_count = detailsData.task.subtasks_count || 0;
-                            task.subtasks_completed = detailsData.task.subtasks_completed || 0;
-                            task.comments = detailsData.task.comments || [];
-                            task.comments_count = detailsData.task.comments_count || 0;
-                            task.attachments = detailsData.task.attachments || [];
-                            task.attachments_count = detailsData.task.attachments_count || 0;
-                            if (detailsData.task.notes) {
-                                task.notes = detailsData.task.notes;
-                                task.description = detailsData.task.notes;
-                            }
-                            console.log('✓ Full task details loaded');
-                        }
-                    }
-                } catch (detailsError) {
-                    console.warn('Could not fetch full task details:', detailsError);
-                    // Continue with basic task info
-                }
-
-                // Render expanded view
-                await renderExpandedTask(task);
-
-                console.log('✓ Task expanded successfully');
-            } catch (error) {
-                console.error('❌ Error in toggleTask:', error);
-                alert('Error expanding task: ' + error.message);
-                expandedTaskId = null;
-                renderContent();
-            }
-        }
-
-        // Render expanded task view
-        async function renderExpandedTask(task) {
-            try {
-                console.log('Rendering expanded task:', task);
-                const container = document.getElementById('contentList');
-
-                // Build expanded task HTML
-                let html = '<div class="expanded-email-view">';
-
-            // Header with navigation
-            html += '<div class="expanded-email-header">';
-            html += '<button onclick="closeExpandedTask()" class="email-action-btn">← Back to List</button>';
-            html += '<div class="expanded-email-navigation">';
-
-            // Get current task list for navigation
-            const currentTasks = getCurrentTaskList();
-            const currentIndex = currentTasks.findIndex(t => t.gid === task.gid);
-
-            if (currentIndex > 0) {
-                const prevTask = currentTasks[currentIndex - 1];
-                html += '<button onclick="toggleTask(\'' + prevTask.gid + '\')" class="email-action-btn">← Previous</button>';
-            }
-
-            html += '<span style="margin:0 10px;color:var(--text3)">' + (currentIndex + 1) + ' of ' + currentTasks.length + '</span>';
-
-            if (currentIndex < currentTasks.length - 1) {
-                const nextTask = currentTasks[currentIndex + 1];
-                html += '<button onclick="toggleTask(\'' + nextTask.gid + '\')" class="email-action-btn">Next →</button>';
-            }
-
-            html += '</div>';
-            html += '</div>';
-
-            // Task details
-            html += '<div class="expanded-email-content">';
-
-            // Project and Section
-            html += '<div style="margin-bottom:16px;color:var(--text2);font-size:.9rem">';
-            html += '<strong>' + escapeHtml(task.project) + '</strong>';
-            if (task.section) {
-                html += ' > ' + escapeHtml(task.section);
-            }
-            html += '</div>';
-
-            // Task name
-            html += '<h2 style="margin-bottom:16px;color:var(--text)">' + escapeHtml(task.name) + '</h2>';
-
-            // Task metadata
-            html += '<div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;font-size:.9rem">';
-            html += '<div><strong>Assignee:</strong> ' + escapeHtml(task.assignee?.name || 'Unassigned') + '</div>';
-            html += '<div><strong>Due:</strong> ' + escapeHtml(task.due_date || 'No due date') + '</div>';
-            if (task.subtasks_count && task.subtasks_count > 0) {
-                html += '<div><strong>Subtasks:</strong> ' + (task.subtasks_completed || 0) + '/' + task.subtasks_count + ' completed</div>';
-            }
-            html += '</div>';
-
-            // Description/Notes
-            const description = task.description || task.notes || task.ai_summary;
-            if (description && description.trim()) {
-                html += '<div class="email-ai-summary" style="margin-bottom:20px">';
-                html += '<div style="font-weight:600;margin-bottom:8px;color:var(--purple)">Description</div>';
-                html += '<div style="color:var(--text2);white-space:pre-wrap">' + escapeHtml(description) + '</div>';
-                html += '</div>';
-            }
-
-            // Subtasks
-            if (task.subtasks && task.subtasks.length > 0) {
-                html += '<div style="margin-bottom:20px">';
-                html += '<div style="font-weight:600;margin-bottom:8px">Subtasks (' + task.subtasks.length + ')</div>';
-                html += '<div style="background:var(--bg2);padding:12px;border-radius:8px">';
-                task.subtasks.forEach(subtask => {
-                    const checkmark = subtask.completed ? '✓' : '○';
-                    const style = subtask.completed ? 'text-decoration:line-through;opacity:0.6' : '';
-                    html += '<div style="padding:6px 0;' + style + '">' + checkmark + ' ' + escapeHtml(subtask.name) + '</div>';
-                });
-                html += '</div>';
-                html += '</div>';
-            }
-
-            // Comments
-            if (task.comments && task.comments.length > 0) {
-                html += '<div style="margin-bottom:20px">';
-                html += '<div style="font-weight:600;margin-bottom:8px">Comments (' + task.comments.length + ')</div>';
-                task.comments.slice(-5).forEach(comment => {
-                    html += '<div style="background:var(--bg2);padding:12px;border-radius:8px;margin-bottom:8px">';
-                    html += '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(comment.created_by?.name || 'Unknown') + '</div>';
-                    html += '<div style="font-size:.9rem;color:var(--text2)">' + escapeHtml(comment.text || '') + '</div>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-
-            // Attachments
-            if (task.attachments && task.attachments.length > 0) {
-                html += '<div style="margin-bottom:20px">';
-                html += '<div style="font-weight:600;margin-bottom:8px">Attachments (' + task.attachments.length + ')</div>';
-                task.attachments.forEach(attachment => {
-                    html += '<div style="padding:6px 0">📎 ' + escapeHtml(attachment.name) + '</div>';
-                });
-                html += '</div>';
-            }
-
-            // Action buttons
-            html += '<div class="email-actions">';
-            html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="email-action-btn primary">Complete & Advance</button>';
-            html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="email-action-btn">Add Comment</button>';
-            html += '<a href="' + (task.permalink_url || 'https://app.asana.com/0/' + task.gid) + '" target="_blank" class="email-action-btn" onclick="event.stopPropagation()">Open in Asana</a>';
-            html += '</div>';
-
-            html += '</div>'; // Close expanded-email-content
-            html += '</div>'; // Close expanded-email-view
-
-            container.innerHTML = html;
-            console.log('✓ Expanded task HTML rendered');
-            } catch (error) {
-                console.error('❌ Error rendering expanded task:', error);
-                const container = document.getElementById('contentList');
-                container.innerHTML = '<div class="no-selection"><p>Error loading task</p><p style="font-size:.85rem;color:var(--text3);margin-top:8px">' + escapeHtml(error.message) + '</p></div>';
-                throw error;
-            }
-        }
-
-        // Helper function to get current task list
-        function getCurrentTaskList() {
-            const viewMapping = {
-                'task-my-due-today': liveData.tasks?.my_tasks_due_today || [],
-                'task-my-past-due': liveData.tasks?.my_tasks_past_due || [],
-                'task-delegated-due-today': liveData.tasks?.delegated_tasks_due_today || [],
-                'task-delegated-past-due': liveData.tasks?.delegated_tasks_past_due || []
-            };
-            return viewMapping[currentView] || [];
-        }
-
-        // Close expanded task view
-        function closeExpandedTask() {
-            expandedTaskId = null;
-            renderContent();
-        }
-
-        // Complete task and advance to next
-        async function completeTaskAndAdvance(taskGid) {
-            // TODO: Implement Asana API call to complete task
-            console.log('Complete task:', taskGid);
-            alert('Task completion not yet implemented. Will mark task as complete in Asana and advance to next task.');
-        }
-
-        // Add comment to task
-        async function addTaskComment(taskGid) {
-            const comment = prompt('Enter your comment:');
-            if (comment) {
-                // TODO: Implement Asana API call to add comment
-                console.log('Add comment to task:', taskGid, comment);
-                alert('Comment feature not yet implemented. Will add comment to Asana task.');
-            }
-        }
-
+        
         // Force refresh daily briefing (bypass cache)
         async function refreshDailyBriefing() {
             console.log(`🔄 Force refreshing daily briefing...`);
@@ -4575,7 +4246,6 @@
         checkAuth();
         restoreCollapseStates();
         loadContactSyncTime(); // Load contact sync timestamp
-        loadAsanaTasks(); // Load Asana tasks on page load
 
         // Auto-grow textarea as user types
         const chatInput = document.getElementById('abbiChatInput');
