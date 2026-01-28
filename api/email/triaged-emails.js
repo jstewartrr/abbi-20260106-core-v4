@@ -1,14 +1,13 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.1.5 - Use working MCP endpoint with correct tool name
-const SNOWFLAKE_GATEWAY = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
-const M365_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
+// Version: 2.1.6 - Use MCP load balancer with correct credentials
+const MCP_GATEWAY = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
   // Set cache control headers to prevent caching
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.1.5');
+  res.setHeader('X-API-Version', '2.1.6');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -19,14 +18,14 @@ export default async function handler(req, res) {
     // Fetch emails and calendar in parallel
     const [snowflakeResponse, calendarResponse] = await Promise.all([
       // Query Hive Mind table directly via Snowflake
-      fetch(SNOWFLAKE_GATEWAY, {
+      fetch(MCP_GATEWAY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
-            name: 'query_snowflake',
+            name: 'sm_query_snowflake',
             arguments: {
               sql: `SELECT DETAILS, SUMMARY, PRIORITY, CREATED_AT
                     FROM SOVEREIGN_MIND.HIVE_MIND.ENTRIES
@@ -40,7 +39,7 @@ export default async function handler(req, res) {
         })
       }),
       // Fetch calendar events from M365 (today and tomorrow)
-      fetch(M365_GATEWAY, {
+      fetch(MCP_GATEWAY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
