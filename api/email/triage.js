@@ -177,7 +177,7 @@ Body: ${email.body_content.substring(0, 4000)}
     const summaryText = `${escapeSql(email.subject)} - ${triageResult.tag} (${triageResult.priority})`;
     const detailsJson = JSON.stringify(emailDetails).replace(/'/g, "''").replace(/\\/g, "\\\\");
 
-    const hiveMindResponse = await fetch('https://mcp.abbi-ai.com/mcp', {
+    const hiveMindResponse = await fetch('https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
