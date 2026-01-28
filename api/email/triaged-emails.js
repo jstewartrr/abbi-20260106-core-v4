@@ -1,6 +1,6 @@
 // Simple API to fetch triaged emails from Hive Mind via Snowflake + calendar events from M365
-// Version: 2.1.9 - Fixed response format to match cv-sf-redundant container (result.data directly)
-const SNOWFLAKE_MCP = 'https://cv-sf-redundant-east-1-20260110.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
+// Version: 2.2.0 - Use sm-mcp-gateway-east with correct credentials (tested and verified)
+const SNOWFLAKE_MCP = 'https://sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp';
 const M365_MCP = 'https://mcp.abbi-ai.com/mcp';
 
 export default async function handler(req, res) {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.setHeader('X-API-Version', '2.1.9');
+  res.setHeader('X-API-Version', '2.2.0');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('=== API v2.1.8 - Fetching triaged emails ===');
+    console.log('=== API v2.2.0 - Fetching triaged emails ===');
     console.log('Snowflake MCP:', SNOWFLAKE_MCP);
 
     // Fetch emails and calendar in parallel
@@ -67,7 +67,6 @@ export default async function handler(req, res) {
     }
 
     const snowflakeData = await snowflakeResponse.json();
-    console.log('Snowflake response:', JSON.stringify(snowflakeData).substring(0, 300));
 
     // Check for MCP error
     if (snowflakeData.error) {
@@ -75,13 +74,22 @@ export default async function handler(req, res) {
       throw new Error(`Snowflake error: ${snowflakeData.error.message || JSON.stringify(snowflakeData.error)}`);
     }
 
-    // cv-sf-redundant format: result.data directly (like read-hive-mind.js)
-    if (!snowflakeData.result || !snowflakeData.result.data) {
+    // sm-mcp-gateway format: result.content[0].text (like query-snowflake-simple.js)
+    if (!snowflakeData.result || !snowflakeData.result.content || !snowflakeData.result.content[0]) {
       console.error('Invalid Snowflake response:', JSON.stringify(snowflakeData).substring(0, 500));
-      throw new Error('No data returned from Snowflake');
+      throw new Error('Invalid response from Snowflake');
     }
 
-    const results = { success: true, data: snowflakeData.result.data };
+    const resultText = snowflakeData.result.content[0].text;
+    const results = JSON.parse(resultText);
+
+    if (!results.success) {
+      throw new Error(results.error || 'Snowflake query failed');
+    }
+
+    if (!results.data || results.data.length === 0) {
+      console.log('No triaged emails found');
+    }
 
     // Parse calendar response
     let calendarEvents = [];

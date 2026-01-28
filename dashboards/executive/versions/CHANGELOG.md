@@ -1,5 +1,37 @@
 # Dashboard Version Changelog
 
+## v10.0.4 - 2026-01-28
+
+### Bug Fix - Use sm-mcp-gateway-east with Verified Working Credentials
+
+Fixed API by using sm-mcp-gateway-east endpoint which has correct credentials and was tested before deployment.
+
+**Testing Process**:
+1. Tested sm-mcp-gateway-east endpoint directly via curl - SUCCESS
+2. Verified response format: result.content[0].text (JSON string to parse)
+3. Created local Node.js test script to verify full logic - SUCCESS (returned 3 emails)
+4. Confirmed endpoint is used by other working APIs (debug-executive.js, contacts/, asana/)
+
+**Root Cause**: Previous versions used endpoints with either wrong credentials or wrong response formats without proper testing.
+
+**Solution**:
+- Endpoint: `sm-mcp-gateway-east.lemoncoast-87756bcf.eastus.azurecontainerapps.io/mcp`
+- Tool: `sm_query_snowflake`
+- Format: `result.content[0].text` → `JSON.parse(text)` → `{success, data}`
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - API Version 2.2.0
+  - Changed to sm-mcp-gateway-east endpoint
+  - Fixed response parsing to match query-snowflake-simple.js
+  - Tested before deployment
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.4
+
+**Impact**: Dashboard loads triaged emails successfully with verified working credentials.
+
+**Testing**: API tested and confirmed working before deployment.
+
+---
+
 ## v10.0.3 - 2026-01-28
 
 ### Bug Fix - Fixed Response Format Parsing
