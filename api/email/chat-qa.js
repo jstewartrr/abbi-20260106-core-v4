@@ -14,9 +14,9 @@ async function mcpCall(tool, args = {}) {
   const isAsanaTool = tool.startsWith('asana_');
   const gateway = isAsanaTool ? ASANA_GATEWAY : M365_GATEWAY;
 
-  // Gateway expects tool names WITHOUT the prefix
-  // Strip the prefix: m365_reply_email -> reply_email, asana_create_task -> create_task
-  const actualToolName = tool.replace(/^(m365|asana)_/, '');
+  // M365 gateway expects tool names WITHOUT the m365_ prefix
+  // Asana gateway expects tool names WITH the asana_ prefix
+  const actualToolName = isAsanaTool ? tool : tool.replace(/^m365_/, '');
 
   console.log(`🔧 [mcpCall] Calling ${tool} (as ${actualToolName}) via ${isAsanaTool ? 'ASANA' : 'M365'} gateway with args:`, JSON.stringify(args).substring(0, 200));
 
