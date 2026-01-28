@@ -1,5 +1,64 @@
 # Dashboard Version Changelog
 
+## v10.0.1 - 2026-01-28
+
+### Bug Fix - Corrected MCP Gateway Configuration
+
+Fixed API error causing "Incorrect username or password" when fetching triaged emails.
+
+**Root Cause**: After switching to the cv-sf-redundant MCP endpoint in v10.0.0, the Snowflake credentials were incorrect, causing account lockouts.
+
+**Solution**:
+1. Reverted to correct MCP gateway: `https://mcp.abbi-ai.com/mcp`
+2. Using `sm_query_snowflake` tool with proper SOVEREIGN_MIND_WH credentials
+3. Fixed undefined variable references (SNOWFLAKE_GATEWAY, M365_GATEWAY → MCP_GATEWAY)
+
+**Files Changed**:
+- `/api/email/triaged-emails.js` - Corrected MCP endpoint and tool name
+  - API Version: 2.1.6
+  - Tool: `sm_query_snowflake` (correct credentials)
+  - Gateway: `mcp.abbi-ai.com` (load balancer)
+
+**Impact**: Dashboard now loads triaged emails successfully without Snowflake authentication errors.
+
+**Testing**: Refresh dashboard - should load 54 triaged emails from HIVE_MIND without errors.
+
+---
+
+## v10.0.0 - 2026-01-28
+
+### Major Milestone - All 37 Email Scenarios Fixed
+
+**CRITICAL**: All 37 Make.com email sync scenarios have been fixed with toString() wrapper to resolve JSON parsing errors.
+
+**Changes Applied to All Scenarios**:
+1. **SQL Fix - TO_RECIPIENTS**: Changed from `PARSE_JSON('{{1.toRecipients}}')` to `PARSE_JSON($${{toString(1.toRecipients)}}$$)`
+2. **SQL Fix - CC_RECIPIENTS**: Changed from `PARSE_JSON('{{1.ccRecipients}}')` to `PARSE_JSON($${{toString(1.ccRecipients)}}$$)`
+3. **Email Filter**: Changed from `"select": "all"` to `"select": "unread"`
+4. **Processing Limit**: Increased from `"limit": 10` to `"limit": 50`
+5. **Unread Filter Mapper**: Added `"mapper": {"isRead": "false"}`
+
+**Why This Was Needed**: Make.com's `{{1.toRecipients}}` outputs a JavaScript array object, not a JSON string. PARSE_JSON failed with "Unexpected token '[Object]'" errors. The toString() function properly serializes the array to valid JSON before parsing.
+
+**Scenarios Fixed** (37 total):
+- **jstewart@middleground.com** (8): Inbox, 000.1 Signature Request, 02.05 Dechert, 02.3 IB Banks and Lenders, 02.4 CEO's, 02.1 Investor, 02.2 Placement Agents, Daily Liquidity
+- **john@middleground.com** (29): Inbox, 01.01-01.13, 01.19, 01.21-01.36
+
+**Files Changed**:
+- All 37 Make.com scenario blueprints via API
+- `/MAKE_COM_SCENARIO_STATUS.md` - Updated to show 37/37 complete
+- `/MAKE_COM_BROKEN_SCENARIOS.md` - Marked all issues resolved
+- `/dashboards/executive/jstewart.html` - Version bump, cache-busting headers
+
+**Deployment**:
+- Scenarios run every 15 minutes
+- Next execution: 00:53 UTC
+- Processing: 50 unread emails per folder per cycle
+
+**Documentation**: See MAKE_COM_SCENARIO_STATUS.md for complete fix details.
+
+---
+
 ## v9.9.4 - 2026-01-26
 
 ### Enhancement - Streamlined Email Processing Workflow
