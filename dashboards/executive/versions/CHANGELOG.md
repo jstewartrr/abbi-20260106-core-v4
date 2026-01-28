@@ -1,5 +1,42 @@
 # Dashboard Version Changelog
 
+## v10.0.9 - 2026-01-28
+
+### Bug Fix - Auto-Expand First Email When Category Clicked
+
+Fixed issue where clicking a category showed list view instead of automatically expanding the first email.
+
+**Problem:**
+- When user clicked a category (e.g., "Urgent/Priority"), emails displayed in list view
+- User had to click the first email to see it expanded
+- Auto-expand only worked when Daily Briefing was already loaded
+
+**Root Cause:**
+- `getFilteredEmailList()` function was missing category mappings for Daily Briefing categories
+- Categories like 'email-urgent-priority', 'email-to-need-response', etc. weren't mapped
+- Without mappings, the filter didn't work correctly, causing auto-expand logic to fail
+
+**Solution:**
+1. Added missing category mappings to `getFilteredEmailList()` function:
+   - 'email-urgent-priority' → 'Urgent/Priority'
+   - 'email-to-need-response' → 'To: Need Response/Action'
+   - 'email-to-fyi' → 'To: FYI'
+   - 'email-cc-need-response' → 'CC: Need Response/Action'
+   - 'email-cc-fyi' → 'CC: FYI'
+
+2. Added `expandedEmailId = null` reset in `switchMetricView()` to ensure fresh state when switching categories
+
+**Files Changed:**
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.9
+  - Modified getFilteredEmailList function (line ~1278-1295) - added 5 missing category mappings
+  - Modified switchMetricView function (line ~636) - reset expandedEmailId when switching views
+
+**Impact:** Now when user clicks any email category, the first email automatically expands in detail view, enabling immediate review without extra clicks.
+
+**Testing:** Click any category (Urgent/Priority, To: Need Response, etc.) → First email should auto-expand showing AI summary, Previous/Next buttons, and Mark as Read button.
+
+---
+
 ## v10.0.8 - 2026-01-28
 
 ### UX Improvement - Auto-Expand Next Email After Mark as Read
