@@ -1,5 +1,48 @@
 # Dashboard Version Changelog
 
+## v10.0.8 - 2026-01-28
+
+### UX Improvement - Auto-Expand Next Email After Mark as Read
+
+Improved email navigation workflow by automatically expanding the next email when "Mark as Read & Close" is clicked, instead of returning to list view.
+
+**User Request:**
+"When I click Read and Remove button, it returns to list view. I would like it to be in expanded view so I can just click on the next or previous button."
+
+**Problem:**
+- User clicks a category (e.g., "Urgent/Priority") → emails display in list view
+- User clicks an email → it expands to show AI summary
+- User clicks "Mark as Read & Close" → returned to list view (had to click next email again)
+- Inefficient workflow for processing multiple emails
+
+**Solution:**
+Changed markEmailReadAndClose function to automatically call processEmail(nextEmail.id) when advancing to the next email, keeping user in expanded view throughout the workflow.
+
+**Workflow Before:**
+1. Click category → list view
+2. Click email → expanded view
+3. Click "Mark as Read & Close" → list view
+4. Click next email → expanded view
+5. Repeat...
+
+**Workflow After:**
+1. Click category → auto-expands first email
+2. Click "Mark as Read & Close" → auto-expands next email
+3. Click "Mark as Read & Close" → auto-expands next email
+4. Continue until no more emails → returns to list view
+
+**Files Changed:**
+- `/dashboards/executive/jstewart.html` - Version bump to v10.0.8
+  - Modified markEmailReadAndClose function (line ~1938)
+  - Changed from `renderContent()` to `processEmail(nextEmail.id)`
+  - Falls back to renderContent() if processEmail not available
+
+**Impact:** Significantly faster email triage workflow - users can process emails sequentially without repeatedly clicking to expand each one.
+
+**Note:** Previous/Next buttons were already present in expanded view, so users can navigate both forward and backward through emails while staying in expanded view.
+
+---
+
 ## v10.0.7 - 2026-01-28
 
 ### Enhancement - Added Retry Logic for 100% Reliability
