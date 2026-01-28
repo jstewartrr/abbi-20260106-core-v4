@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- ABBI Executive Dashboard v10.1.12 - Add task context to AI chat -->
-<!-- Force refresh: 2026-01-28T09:00:00Z -->
-<!-- Change: AI now has full context of expanded tasks (like emails) -->
+<!-- ABBI Executive Dashboard v10.2.0 - Add approval workflow buttons -->
+<!-- Force refresh: 2026-01-28T09:30:00Z -->
+<!-- Change: Approval tasks now show Approve/Request Changes/Reject buttons -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Executive Dashboard v10.1.12 | ABBI</title>
+    <title>Executive Dashboard v10.2.0 | ABBI</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%238b5cf6'/></svg>">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -251,7 +251,7 @@
         </div>
         <div class="nav-right">
             <div class="nav-status"><span class="status-dot"></span>Live</div>
-            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.1.12</span>
+            <span style="font-size:.85rem;color:var(--purple);margin-left:12px;font-weight:600;padding:4px 10px;background:rgba(139,92,246,.1);border-radius:6px">v10.2.0</span>
             <span id="weather-display" style="display:flex;align-items:center;gap:8px"></span>
             <span id="header-time-display" style="font-size:.85rem;font-weight:500;color:var(--text)"></span>
             <button id="refresh-emails-btn" class="nav-refresh-btn" onclick="manualRefreshEmails()" title="Manually trigger email triage and refresh cache">
@@ -4172,10 +4172,28 @@
                 html += '</div>';
             }
 
-            // Action buttons
+            // Detect if this is an approval task
+            const taskText = (task.name + ' ' + (task.description || task.notes || '') + ' ' + (task.section || '')).toLowerCase();
+            const isApproval = taskText.includes('approval') ||
+                             taskText.includes('approve') ||
+                             taskText.includes('request for') ||
+                             taskText.includes('needs approval') ||
+                             taskText.includes('pending approval');
+
+            // Action buttons - different for approvals vs regular tasks
             html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">';
-            html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="response-btn primary" style="flex:1;min-width:160px">✓ Complete & Advance</button>';
-            html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="response-btn" style="flex:1;min-width:160px">💬 Add Comment</button>';
+
+            if (isApproval) {
+                // Approval-specific buttons (like Dropbox)
+                html += '<button onclick="approveTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#10b981;border-color:#10b981;color:#fff">✓ Approve</button>';
+                html += '<button onclick="requestChangesTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#f59e0b;border-color:#f59e0b;color:#fff">↻ Request Changes</button>';
+                html += '<button onclick="rejectTask(\'' + task.gid + '\', \'' + escapeHtml(task.name) + '\')" class="response-btn" style="flex:1;min-width:140px;background:#ef4444;border-color:#ef4444;color:#fff">✗ Reject</button>';
+            } else {
+                // Regular task buttons
+                html += '<button onclick="completeTaskAndAdvance(\'' + task.gid + '\')" class="response-btn primary" style="flex:1;min-width:160px">✓ Complete & Advance</button>';
+                html += '<button onclick="addTaskComment(\'' + task.gid + '\')" class="response-btn" style="flex:1;min-width:160px">💬 Add Comment</button>';
+            }
+
             html += '<a href="' + (task.permalink_url || 'https://app.asana.com/0/' + task.gid) + '" target="_blank" class="response-btn" style="flex:1;min-width:160px;text-decoration:none" onclick="event.stopPropagation()">🔗 Open in Asana</a>';
             html += '</div>';
 
@@ -4245,6 +4263,151 @@
                 // TODO: Implement Asana API call to add comment
                 console.log('Add comment to task:', taskGid, comment);
                 alert('Comment feature not yet implemented. Will add comment to Asana task.');
+            }
+        }
+
+        // Approve task (for approval requests)
+        async function approveTask(taskGid, taskName) {
+            const comment = prompt('Approval comment (optional):', 'Approved by John Stewart');
+            if (comment === null) return; // User cancelled
+
+            try {
+                console.log('Approving task:', taskGid);
+
+                // Add approval comment to Asana task
+                const response = await fetch('/api/asana/add-comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: taskGid,
+                        comment: `✅ **APPROVED**\n\n${comment}`
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add approval comment');
+                }
+
+                // Mark task as complete
+                const completeResponse = await fetch('/api/asana/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskGid })
+                });
+
+                if (!completeResponse.ok) {
+                    console.warn('Could not complete task, but comment was added');
+                }
+
+                alert('✅ Task approved successfully!');
+
+                // Advance to next task
+                advanceToNextTask();
+
+            } catch (error) {
+                console.error('Error approving task:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Request changes on task
+        async function requestChangesTask(taskGid, taskName) {
+            const comment = prompt('What changes are needed?', '');
+            if (!comment || comment.trim() === '') {
+                alert('Please specify what changes are needed.');
+                return;
+            }
+
+            try {
+                console.log('Requesting changes on task:', taskGid);
+
+                // Add request changes comment to Asana task
+                const response = await fetch('/api/asana/add-comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: taskGid,
+                        comment: `🔄 **CHANGES REQUESTED**\n\n${comment}\n\n— John Stewart`
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add comment');
+                }
+
+                alert('🔄 Changes requested successfully!');
+
+                // Advance to next task (but don't complete this one)
+                advanceToNextTask();
+
+            } catch (error) {
+                console.error('Error requesting changes:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Reject task
+        async function rejectTask(taskGid, taskName) {
+            const reason = prompt('Reason for rejection:', '');
+            if (!reason || reason.trim() === '') {
+                alert('Please provide a reason for rejection.');
+                return;
+            }
+
+            const confirm = window.confirm(`Are you sure you want to REJECT this approval?\n\n"${taskName}"\n\nThis will mark the task as complete with a rejection notice.`);
+            if (!confirm) return;
+
+            try {
+                console.log('Rejecting task:', taskGid);
+
+                // Add rejection comment to Asana task
+                const response = await fetch('/api/asana/add-comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: taskGid,
+                        comment: `❌ **REJECTED**\n\n${reason}\n\n— John Stewart`
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add rejection comment');
+                }
+
+                // Mark task as complete
+                const completeResponse = await fetch('/api/asana/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskGid })
+                });
+
+                if (!completeResponse.ok) {
+                    console.warn('Could not complete task, but comment was added');
+                }
+
+                alert('❌ Task rejected.');
+
+                // Advance to next task
+                advanceToNextTask();
+
+            } catch (error) {
+                console.error('Error rejecting task:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Helper function to advance to next task
+        function advanceToNextTask() {
+            const currentTasks = getCurrentTaskList();
+            const currentIndex = currentTasks.findIndex(t => t.gid === expandedTaskId);
+
+            if (currentIndex >= 0 && currentIndex < currentTasks.length - 1) {
+                // Move to next task
+                const nextTask = currentTasks[currentIndex + 1];
+                toggleTask(nextTask.gid);
+            } else {
+                // No more tasks, go back to list
+                closeExpandedTask();
             }
         }
 
